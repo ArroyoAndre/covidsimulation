@@ -35,11 +35,11 @@ PROPENSAO_ISOLAMENTO_FAIXA = [
 ]
 
 
-PROPENSAO_ISOLAMENTO_PUBLICO_CD = -0.6
+PROPENSAO_ISOLAMENTO_PUBLICO_CD = -0.4
 PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
 
 
-PUBLICO_E = {
+CLASSE_E = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
       AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.75)
@@ -57,7 +57,7 @@ PUBLICO_E = {
 }
 
 
-PUBLICO_CD = {
+CLASSE_CD = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
       AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_CD, 0.92)
@@ -69,13 +69,13 @@ PUBLICO_CD = {
       0.25,  # 3p
       0.2,   # 4p
     ]),
-    'habitantes': total_inhabitants * 6 / 12.0,
+    'habitantes': total_inhabitants * 8 / 12.0,
     'deslocamento': 0.8,  # deslocamento geográfico
     'infectados_iniciais': 1,
 }
 
 
-PRIVADO = {
+CLASSE_AB = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
       AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.95)
@@ -87,12 +87,12 @@ PRIVADO = {
       0.25,  # 3p
       0.15,  # 4p
     ]),
-    'habitantes': total_inhabitants * 5 / 12.0,
+    'habitantes': total_inhabitants * 3 / 12.0,
     'deslocamento': 0.0,  # deslocamento geográfico
     'infectados_iniciais': 6,
 }
 
-population_segments = {'privado': PRIVADO, 'publico_cd': PUBLICO_CD, 'publico_e': PUBLICO_E}
+population_segments = {'classe_ab': CLASSE_AB, 'classe_cd': CLASSE_CD, 'classe_e': CLASSE_E}
 
 params = Parameters(
     population_segments,
