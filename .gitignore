@@ -1,0 +1,15 @@
+venv/
+env/
+.cpp
+.c
+__pycache__
+.so
+.o
+build/
+.idea
+.vscode
+.pyc
+.pkl
+.ipynb
+!Example.ipynb
+.png
