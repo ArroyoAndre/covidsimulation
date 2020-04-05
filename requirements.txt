@@ -1,0 +1,7 @@
+smart_open
+matplotlib
+plotly
+numpy
+pandas
+simpy
+Cython==0.29.16
