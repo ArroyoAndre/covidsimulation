@@ -1,7 +1,7 @@
 ## Probability of an outcome X or worse
 # X = [NO_SYMPTOMS, MILD, MODERATE, SEVERE (hospitalization required), ITU, VENTILATION, DEATH]
 #
-# E.g.:  20-29's have a 0.5 propability of not developing a detectable infection
+# E.g.:  10-19's have a 0.6 (1-0.4) propability of not developing a detectable infection
 #        30-39' have 0.241 probability of at least developing mild symptoms
 #        80+ have 0.078 probability of death
 
