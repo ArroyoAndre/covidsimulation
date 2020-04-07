@@ -6,6 +6,8 @@ Covid Epidemics Simulation with Simpy
 1. Run `setup.sh`  (It might require making it executable: `chmod 777 setup.sh`)
 1. Check `Example.ipynb` to understand how it works
 1. Setup your own regions and modify simulation parameters and constants
+1. Whenever you change Cython code, don't forget to compile it with 
+`python3 setup.py build_ext --inplace` or simply call `setup.sh` again
 
 # Understanding the code
 
