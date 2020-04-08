@@ -401,7 +401,7 @@ cdef class Person:
             if self.atencao_req:
                 atencao_req.__exit__(None, None, None)
                 self.atencao_req = None
-            if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.env.chance_sobrevida_sem_atendimento:
+            if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.sim_consts.survival_probability_in_severe_overcapacity:
                 return  # Sorte - o paciente se recuperou em home
             self.morte_evitavel = True
             yield from self.rodar_morte(0)
@@ -419,7 +419,7 @@ cdef class Person:
             if self.leito_req:
                 leito_req.__exit__(None, None, None)
                 self.leito_req = None
-            if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.env.chance_sobrevida_sem_leito:
+            if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.sim_consts.survival_probability_without_hospital_bed:
                 return  # Sorte - o paciente se recuperou em home
             self.morte_evitavel = True
             yield from self.rodar_morte(0)
@@ -436,7 +436,7 @@ cdef class Person:
             if self.uti_req:
                 uti_req.__exit__(None, None, None)
                 self.uti_req = None
-            if np.random.random() < self.env.chance_sobrevida_sem_uti:
+            if np.random.random() < self.sim_consts.survival_probability_without_intensive_care_bed:
                 return  # Sorte - o paciente se recuperou em home
             self.morte_evitavel = True
             yield from self.rodar_morte(0)
@@ -453,7 +453,7 @@ cdef class Person:
             if self.ventilacao_req:
                 ventilacao_req.__exit__(None, None, None)
                 self.ventilacao_req = None
-            if np.random.random() < self.env.chance_sobrevida_sem_ventilador:
+            if np.random.random() < self.sim_consts.survival_probability_without_ventilator:
                 return  # Sorte - o paciente se recuperou em home
             self.morte_evitavel = True
             yield from self.rodar_morte(0)
