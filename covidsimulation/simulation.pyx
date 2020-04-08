@@ -219,7 +219,7 @@ cdef class Person:
     cdef size_t expected_outcome
     cdef public Home home
 
-    cdef public bool suceptivel
+    cdef public bool succeptible
     cdef public bool infectado
     cdef public bool internado
     cdef public bool recuperado
@@ -249,7 +249,7 @@ cdef class Person:
     def __cinit__(self, object env, object age_group, Home home):
         self.env = env
         self.sim_consts = env.sim_params.constants
-        self.suceptivel = True  # sem imunidade
+        self.succeptible = True  # sem imunidade
         self.infectado = False  # teve infeccao detectavel
         self.internado = False  # em internacao no momento
         self.recuperado = False  # teve infeccao detectavel e nao tem mais nem morreu
@@ -291,9 +291,9 @@ cdef class Person:
             1.0 - atraso_sintomas * self.sim_consts.incubation_to_symptoms_variable_fraction)
 
     def expose_to_virus(self):
-        if not self.suceptivel:
+        if not self.succeptible:
             return False
-        self.suceptivel = False
+        self.succeptible = False
         self.data_contagio = self.env.now
         if self.expected_outcome == Outcome.NO_INFECTION:
             return False        
@@ -369,12 +369,24 @@ cdef class Person:
     cdef configurar_evolucao_moderado_em_casa(self):
         tempo_desfecho = np.random.weibull(2) * 20  # 18 dias  
         self.env.process(self.rodar_curar(tempo_desfecho))
-        self.env.solicitar_exame(1, self)
+        self.request_diagnosis()
 
     cdef configurar_evolucao_leve_em_casa(self):
         tempo_desfecho = np.random.weibull(2) * 15  # 18 dias  
         self.env.process(self.rodar_curar(tempo_desfecho))
-    
+
+    def request_diagnosis(self):
+        diagnosis_delay = self.age_group.diagnosis_delay
+        if diagnosis_delay is None:
+            self.env.solicitar_exame(0, self)
+        else:
+            self.env.process(self.wait_for_diagnosis(diagnosis_delay))
+
+    def wait_for_diagnosis(self, float diagnosis_delay):
+        cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
+        yield self.env.timeout(diagnosis_delay)
+        self.diagnosticado = True
+
     def rodar_internacao(self, tempo_ate_internacao):
         yield self.env.timeout(tempo_ate_internacao)
         if self.morto:
@@ -385,7 +397,7 @@ cdef class Person:
         else:
             self.internado = True
             self.data_internacao = self.env.now
-            self.env.solicitar_exame(0, self)
+            self.request_diagnosis()
   
     def requisitar_atencao(self):
         atencao_req = self.env.atencao.request(Outcome.DEATH - self.expected_outcome)
@@ -396,7 +408,7 @@ cdef class Person:
             if self.atencao_req:
                 self.internado = True
                 self.data_internacao = self.env.now
-            self.env.solicitar_exame(0, self)
+            self.request_diagnosis()
         else:
             if self.atencao_req:
                 atencao_req.__exit__(None, None, None)
@@ -541,7 +553,7 @@ cdef class Person:
         self.em_leito = False
         self.em_uti = False
         self.em_ventila_mec = False
-        self.suceptivel = False
+        self.succeptible = False
         self.morto = True
         self.data_morte = self.env.now
     
@@ -570,7 +582,7 @@ cdef class Person:
         while self.em_contagio and not self.internado:
             if not self.testar_isolamento():
                 contato_na_rua = escolher_contato_na_rua(self, self.env.pessoas)
-                if contato_na_rua.suceptivel and not (contato_na_rua.testar_isolamento() 
+                if contato_na_rua.succeptible and not (contato_na_rua.testar_isolamento() 
                                                     or contato_na_rua.internado):
                     if contato_na_rua.expose_to_virus():
             #          print(self.env.now, 'Contagio na rua')
@@ -622,8 +634,8 @@ cdef int get_contagio_finalizado(Person pessoa):
 cdef int get_rt(Person pessoa):
     return pessoa.transmitidos if pessoa.infectado and not (pessoa.em_contagio or pessoa.em_incubacao) else 0
 
-cdef int get_suceptivel(Person pessoa):
-    return pessoa.suceptivel
+cdef int get_succeptible(Person pessoa):
+    return pessoa.succeptible
 
 
 cdef list fmetricas = [
@@ -639,25 +651,25 @@ cdef list fmetricas = [
     get_em_contagio,
     get_contagio_finalizado,
     get_rt,
-    get_suceptivel,
+    get_succeptible,
     get_em_leito,
 ]
 
 
 MEASUREMENTS = [
-    'populacao',
-    'infectados',
+    'population',
+    'infected',
     'in_isolation',
-    'diagnosticados',
-    'mortos',
-    'mortos_confirmados',
-    'internados',
-    'ventilados',
-    'em_uti',
-    'em_contagio',
-    'contagio_finalizado',
-    'transmitidos',
-    'suceptivel',
+    'diagnosed',
+    'deaths',
+    'confirmed_deaths',
+    'inpatients',
+    'ventilated',
+    'in_intensive_care',
+    'contagious',
+    'contagion_ended',
+    'transmited',
+    'succeptible',
     'in_hospital_bed',
 ]
 

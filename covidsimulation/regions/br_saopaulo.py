@@ -42,7 +42,8 @@ PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
 CLASSE_E = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.75)
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.75,
+               diagnosis_delay=14.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     'tamanho_casas': np.array([
@@ -60,7 +61,8 @@ CLASSE_E = {
 CLASSE_CD = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_CD, 0.92)
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_CD, 0.92,
+               diagnosis_delay=14.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     'tamanho_casas': np.array([
@@ -78,7 +80,7 @@ CLASSE_CD = {
 CLASSE_AB = {
     'probabilidade_faixas': np.array(list(age_structure.values())),
     'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.95)
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.95, diagnosis_delay=5.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     'tamanho_casas': np.array([
@@ -97,7 +99,7 @@ population_segments = {'classe_ab': CLASSE_AB, 'classe_cd': CLASSE_CD, 'classe_e
 params = Parameters(
     population_segments,
     SimulationConstants(),
-    d0_infections=2500,
+    d0_infections=3400,
     start_date='2020-03-06',
     capacity_hospital_max=60000,
     capacity_hospital_beds=20000,

@@ -9,6 +9,7 @@ from . import simulation as cs
 from .lab import laboratorio
 from .parameters import Parameters
 from .stats import Stats
+from .metrics import METRICS
 
 
 def get_matriz_estatisticas(env, duracao):
@@ -157,28 +158,6 @@ def run_simulations(
     if nome_simulacao:
         stats.save(nome_simulacao)
     return stats
-
-
-METRICS = {
-    'populacao': ('populacao', None),
-    'infectados': ('infectados', None),
-    'in_isolation': ('in_isolation', None),
-    'diagnosticados': ('diagnosticados', None),
-    'mortos': ('mortos', None),
-    'mortos_confirmados': ('mortos_confirmados', None),
-    'internados': ('internados', None),
-    'ventilados': ('ventilados', None),
-    'em_uti': ('em_uti', None),
-    'em_contagio': ('em_contagio', None),
-    'contagio_finalizado': ('contagio_finalizado', None),
-    'transmitidos': ('transmitidos', None),
-    'suceptivel': ('suceptivel', None),
-    'in_hospital_bed': ('in_hospital_bed', None),
-    'pc_infectados': ('infectados', 'populacao'),
-    'pc_isolados': ('in_isolation', 'populacao'),
-    'pc_em_contagio': ('em_contagio', 'populacao'),
-    'rt': ('transmitidos', 'contagio_finalizado'),
-}
 
 
 def combina_stats(all_stats: List[np.ndarray], sim_params: Parameters):
