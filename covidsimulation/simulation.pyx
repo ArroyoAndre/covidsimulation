@@ -275,7 +275,6 @@ cdef class Person:
         self.hospital_bed_req = None
         self.icu_req = None
         self.ventilator_req = None
-
         self.age_group = age_group
         self.isolation_propensity = self.get_isolation_propensity()
         self.expected_outcome = get_outcome(self.age_group.severitys)
@@ -314,25 +313,25 @@ cdef class Person:
         self.env.process(self.run_contagion_street()) 
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
-        self.configure_evolicuon()
+        self.configure_evolution()
         yield self.env.timeout(contagion_duration)
         self.contagious = False
 
-    cdef configure_evolicuon(self):
+    cdef configure_evolution(self):
         if self.expected_outcome == Outcome.DEATH:
-            self.configure_evolicuon_death()
+            self.configure_evolution_death()
         elif self.expected_outcome == Outcome.VENTILATION:
-            self.configure_evolicuon_ventilation()
+            self.configure_evolution_ventilation()
         elif self.expected_outcome == Outcome.INTENSIVE_CARE:
-            self.configure_evolicuon_icu()
+            self.configure_evolution_icu()
         elif self.expected_outcome == Outcome.SEVERE:
-            self.configure_evolicuon_hospitalization()
+            self.configure_evolution_hospitalization()
         elif self.expected_outcome == Outcome.MODERATE:
-            self.configure_evolicuon_moderate_at_home()
+            self.configure_evolution_moderate_at_home()
         elif self.expected_outcome == Outcome.MILD:
-            self.configure_evolicuon_mild_at_home()
+            self.configure_evolution_mild_at_home()
 
-    cdef configure_evolicuon_death(self):
+    cdef configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
         time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
         self.env.process(self.run_hospitalization(time_until_hospitalization))
@@ -340,7 +339,7 @@ cdef class Person:
         self.env.process(self.run_ventilation(time_until_icu_and_ventilation))
         self.env.process(self.run_death(time_until_outcome))
 
-    cdef configure_evolicuon_ventilation(self):
+    cdef configure_evolution_ventilation(self):
         time_until_outcome = np.random.weibull(2) * 36  # 32 dias
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.env.process(self.run_hospitalization(time_until_hospitalization))
@@ -352,7 +351,7 @@ cdef class Person:
         self.env.process(self.run_leave_icu(time_until_icu_ends))
         self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolicuon_icu(self):
+    cdef configure_evolution_icu(self):
         time_until_outcome = np.random.weibull(2) * 34  # 30 dias  
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.env.process(self.run_hospitalization(time_until_hospitalization))
@@ -362,18 +361,18 @@ cdef class Person:
         self.env.process(self.run_leave_icu(time_until_icu_ends))
         self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolicuon_hospitalization(self):
+    cdef configure_evolution_hospitalization(self):
         time_until_outcome = np.random.weibull(2) * 33  # 29 dias  
         time_until_hospitalization = time_until_outcome * 0.25  # 7 dias
         self.env.process(self.run_hospitalization(time_until_hospitalization))
         self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolicuon_moderate_at_home(self):
+    cdef configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
         self.env.request_exam(1, self)
 
-    cdef configure_evolicuon_mild_at_home(self):
+    cdef configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
     
@@ -631,14 +630,14 @@ cdef list fmetrics = [
     get_infected,
     get_in_isolation,
     get_diagnosed,
-    get_death,
-    get_confirmed_death,
+    get_deaths,
+    get_confirmed_deaths,
     get_hospitalized,
     get_in_ventilator,
     get_in_icu,
     get_in_hospital_bed,
     get_contagious,
-    get_finished_contagion,
+    get_contagion_ended,
     get_rt,
     get_susceptible,
 ]
@@ -649,14 +648,14 @@ MEASUREMENTS = [
     'infected',
     'in_isolation',
     'diagnosed',
-    'death',
-    'confirmed_death',
-    'hospitalized',
-    'in_ventilator',
-    'in_icu',
+    'deaths',
+    'confirmed_deaths',
+    'inpatients',
+    'ventilated',
+    'in_intensive_care',
     'in_hospital_bed',
     'contagious',
-    'finished_contagion',
+    'contagion_ended',
     'transmitted',
     'susceptible',
 ]
