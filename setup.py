@@ -1,25 +1,22 @@
 import os
-from setuptools import setup, Extension
+from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
 import numpy
 
-cwd = os.getcwd()
+extensions = [
+    Extension(
+            "covidsimulation.simulation",
+            ["covidsimulation/simulation.pyx"],
+            include_dirs=[numpy.get_include()],
+            extra_compile_args=["-O3", "-stdlib=libc++", "-std=c++11"],
+            extra_link_args=["-O2", "-march=native", "-stdlib=libc++"],
+            language="c++"
+        ),
+]
 
-os.chdir(os.path.join(cwd, 'covidsimulation'))
-
-try:
-    extensions = [
-        Extension(
-                "simulation", 
-                ["simulation.pyx"], 
-                include_dirs=[numpy.get_include()],
-                extra_compile_args=["-O3"],
-            ),
-    ]
-
-    setup(
-        ext_modules = cythonize(extensions)
-        )
-
-finally:
-    os.chdir(cwd)
+setup(
+    name="covidsimulation",
+    version="0.0.1",
+    packages=find_packages(exclude=["test*"]),
+    ext_modules = cythonize(extensions)
+)
