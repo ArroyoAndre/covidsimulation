@@ -640,10 +640,10 @@ cdef int get_in_isolation(Person person):
 cdef int get_diagnosed(Person person):
     return person.diagnosed
 
-cdef int get_death(Person person):
+cdef int get_deaths(Person person):
     return person.dead
 
-cdef int get_confirmed_death(Person person):
+cdef int get_confirmed_deaths(Person person):
     return person.dead and person.diagnosed
 
 cdef int get_hospitalized(Person person):
@@ -661,7 +661,7 @@ cdef int get_in_hospital_bed(Person person):
 cdef int get_contagious(Person person):
     return person.contagious
 
-cdef int get_finished_contagion(Person person):
+cdef int get_contagion_ended(Person person):
     return person.infected and not (person.contagious or person.in_incubation)
 
 cdef int get_rt(Person person):
