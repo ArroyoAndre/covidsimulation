@@ -22,7 +22,7 @@ age_structure = {
 total_inhabitants = 20000000
 
 
-PROPENSAO_ISOLAMENTO_FAIXA = [
+ISOLATION_PROPENSITY_PER_AGE = [
     -0.2,  # 0
     -0.4,  # 1
     -0.2,  # 2
@@ -35,64 +35,64 @@ PROPENSAO_ISOLAMENTO_FAIXA = [
 ]
 
 
-PROPENSAO_ISOLAMENTO_PUBLICO_CD = -0.4
-PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
+ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.4
+ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.2
 
 
-CLASSE_E = {
-    'probabilidade_faixas': np.array(list(age_structure.values())),
-    'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.75)
-        for i, nome_faixa in enumerate(age_structure.keys())
+SOCIAL_CLASS_E = {
+    'age_probabilities': np.array(list(age_structure.values())),
+    'age_risk': [
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i] + ISOLATION_PROPENSITY_SOCIAL_CLASS_E, 0.75)
+        for i, age in enumerate(age_structure.keys())
     ],
-    'tamanho_casas': np.array([
+    'house_sizes': np.array([
       0.3,   # 1p
       0.25,  # 2p
       0.25,  # 3p
       0.2,   # 4p
     ]),
-    'habitantes': total_inhabitants * 1 / 12.0,
-    'deslocamento': 1.6,  # deslocamento geográfico
-    'infectados_iniciais': 0,
+    'inhabitants': total_inhabitants * 1 / 12.0,
+    'shift': 1.6,  # geographic shift
+    'initially_infected': 0,
 }
 
 
-CLASSE_CD = {
-    'probabilidade_faixas': np.array(list(age_structure.values())),
-    'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_CD, 0.92)
-        for i, nome_faixa in enumerate(age_structure.keys())
+SOCIAL_CLASS_CD = {
+    'age_probabilities': np.array(list(age_structure.values())),
+    'age_risk': [
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i] + ISOLATION_PROPENSITY_SOCIAL_CLASS_CD, 0.92)
+        for i, age in enumerate(age_structure.keys())
     ],
-    'tamanho_casas': np.array([
+    'house_sizes': np.array([
       0.3,   # 1p
       0.25,  # 2p
       0.25,  # 3p
       0.2,   # 4p
     ]),
-    'habitantes': total_inhabitants * 8 / 12.0,
-    'deslocamento': 0.8,  # deslocamento geográfico
-    'infectados_iniciais': 1,
+    'inhabitants': total_inhabitants * 8 / 12.0,
+    'shift': 0.8,
+    'initially_infected': 1,
 }
 
 
-CLASSE_AB = {
-    'probabilidade_faixas': np.array(list(age_structure.values())),
-    'risco_faixas': [
-      AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.95)
-        for i, nome_faixa in enumerate(age_structure.keys())
+SOCIAL_CLASS_AB = {
+    'age_probabilities': np.array(list(age_structure.values())),
+    'age_risk': [
+      AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i], 0.95)
+        for i, age in enumerate(age_structure.keys())
     ],
-    'tamanho_casas': np.array([
+    'house_sizes': np.array([
       0.3,   # 1p
       0.3,   # 2p
       0.25,  # 3p
       0.15,  # 4p
     ]),
-    'habitantes': total_inhabitants * 3 / 12.0,
-    'deslocamento': 0.0,  # deslocamento geográfico
-    'infectados_iniciais': 6,
+    'inhabitants': total_inhabitants * 3 / 12.0,
+    'shift': 0.0,
+    'initially_infected': 6,
 }
 
-population_segments = {'classe_ab': CLASSE_AB, 'classe_cd': CLASSE_CD, 'classe_e': CLASSE_E}
+population_segments = {'class_ab': SOCIAL_CLASS_AB, 'class_cd': SOCIAL_CLASS_CD, 'class_e': SOCIAL_CLASS_E}
 
 params = Parameters(
     population_segments,
