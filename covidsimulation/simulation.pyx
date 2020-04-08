@@ -1,15 +1,15 @@
-# distutils: language = c++
+# disticuls: language = c++
 
 # Copyright 2020 André Arroyo and contributors
 # 
-# Redistribution and use in source and binary forms, with or without modification, are permitted
+# Redistribicuon and use in source and binary forms, with or without modification, are permitted
 # provided that the following conditions are met:
 # 
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions
+# 1. Redistribicuons of source code must retain the above copyright notice, this list of conditions
 # and the following disclaimer.
 # 
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
-# and the following disclaimer in the documentation and/or other materials provided with the distribution.
+# 2. Redistribicuons in binary form must reproduce the above copyright notice, this list of conditions
+# and the following disclaimer in the documentation and/or other materials provided with the distribicuon.
 # 
 # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or
 # promote products derived from this software without specific prior written permission.
@@ -69,25 +69,25 @@ age_str = [
 ]
 
 
-cdef int get_outcome(np.ndarray severidade):
+cdef int get_outcome(np.ndarray severity):
     cdef double p = (rand() / (RAND_MAX + 1.0))
-    if p > severidade[0]:
+    if p > severity[0]:
         return Outcome.NO_INFECTION
-    elif p > severidade[1]:
+    elif p > severity[1]:
         return Outcome.NO_SYMPTOMS
-    elif p > severidade[2]:
+    elif p > severity[2]:
         return Outcome.MILD
-    elif p > severidade[3]:
+    elif p > severity[3]:
         return Outcome.MODERATE
-    elif p > severidade[4]:
+    elif p > severity[4]:
         return Outcome.SEVERE
-    elif p > severidade[5]:
+    elif p > severity[5]:
         return Outcome.INTENSIVE_CARE
-    elif p > severidade[6]:
+    elif p > severity[6]:
         return Outcome.VENTILATION
     return Outcome.DEATH
 
-LOCALIDADE = 60  ## Quanto maior a localidade, maior a tendência de encontrar alguém geograficamente próximo
+LOCALITY = 60  # The bigger this constant, the higher will be the probability of finding someone geographically closer
 
 
 def seed(unsigned i):
@@ -97,7 +97,7 @@ def seed(unsigned i):
 
 
 cpdef logit_transform_value(double p, double adjustment_logit):
-    """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribution curve by adjustment_logit 
+    """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribicuon curve by adjustment_logit 
     """
     cdef double odds = p / (1.0 - p)
     cdef float logit = clog(odds)
@@ -131,27 +131,27 @@ cdef _choice(list arr, size_t sample_size):
 (len(arr), sample_size)]
 
 
-cdef escolher_contato_na_rua(object pessoa, object pessoas, size_t n_amostra=LOCALIDADE):
-    cdef bool intra_idades = not (rand() % 2)
-    if intra_idades:
-        n_amostra *= 2
-    amostra = _choice(pessoas, n_amostra)  
-    distancias = np.zeros([n_amostra])
-    cdef float px = pessoa.home.coords[0]
-    cdef float py = pessoa.home.coords[1]
-    cdef float pz = pessoa.home.coords[2]
-    cdef float indice_faixa = pessoa.age_group.indice_faixa
-    cdef bool encontra_pessoa_nao_isolada = (rand() % 2)
-    for i, individuo in enumerate(amostra):
-        icoords = individuo.home.coords
-        distancias[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
-    if intra_idades:
-        if individuo.age_group.indice_faixa != indice_faixa:
-            distancias[i] += 1.0
-        if encontra_pessoa_nao_isolada and individuo.em_isolamento:
-            distancias[i] += 1.0            
-    escolhido = amostra[np.argmin(distancias)]
-    return escolhido
+cdef choose_contact_on_street(object person, object people, size_t sample_size=LOCALITY):
+    cdef bool intra_ages = not (rand() % 2)
+    if intra_ages:
+        sample_size *= 2
+    sample = _choice(people, sample_size)  
+    distances = np.zeros([sample_size])
+    cdef float px = person.home.coords[0]
+    cdef float py = person.home.coords[1]
+    cdef float pz = person.home.coords[2]
+    cdef float index = person.age_group.index
+    cdef bool find_non_isolated_person = (rand() % 2)
+    for i, individual in enumerate(sample):
+        icoords = individual.home.coords
+        distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
+    if intra_ages:
+        if individual.age_group.index != index:
+            distances[i] += 1.0
+        if find_non_isolated_person and individual.in_isolation:
+            distances[i] += 1.0            
+    chosen = sample[np.argmin(distances)]
+    return chosen
 
 ###
 ## SimulationConstants and defaults
@@ -190,7 +190,7 @@ cdef class SimulationConstants:
 
 cdef class Home:
     cdef public float isolation_propensity
-    cdef public list moradores
+    cdef public list residents
     cdef public float[3] coords
     
     def __cinit__(self, float displacement):
@@ -200,12 +200,12 @@ cdef class Home:
         cdef diameter = np.sqrt(1.0 - z**2) 
         self.coords[0] = diameter * np.sin(theta) + displacement
         self.coords[1] = diameter * np.cos(theta)
-        self.moradores = []
+        self.residents = []
 
-    def adicionar_pessoa(self, Person pessoa):
-        self.moradores.append(pessoa)
-        pessoa.home = self
-        self.isolation_propensity = np.array([p.isolation_propensity for p in self.moradores]).mean()
+    def add_person(self, Person person):
+        self.residents.append(person)
+        person.home = self
+        self.isolation_propensity = np.array([p.isolation_propensity for p in self.residents]).mean()
 
 
 ####
@@ -221,440 +221,426 @@ cdef class Person:
     cdef size_t expected_outcome
     cdef public Home home
 
-    cdef public bool succeptible
-    cdef public bool infectado
-    cdef public bool internado
-    cdef public bool recuperado
-    cdef public bool em_incubacao
-    cdef public bool em_contagio
-    cdef public bool em_isolamento
-    cdef public bool morto
-    cdef public bool ativo
-    cdef public bool diagnosticado
-    cdef public float data_contagio
-    cdef public float data_diagnostico
-    cdef public float data_internacao
-    cdef public float data_morte
-    cdef public float data_recuperacao
-    cdef public size_t transmitidos
-    cdef public bool em_leito
-    cdef public bool em_uti
-    cdef public bool em_ventila_mec
-    cdef public bool morte_evitavel
-    cdef float tempo_ate_sintomas
-    cdef float tempo_incubacao
-    cdef object leito_req
-    cdef object atencao_req
-    cdef object uti_req
-    cdef object ventilacao_req
+    cdef public bool susceptible
+    cdef public bool infected
+    cdef public bool hospitalized
+    cdef public bool recovered
+    cdef public bool in_incubation
+    cdef public bool contagious
+    cdef public bool in_isolation
+    cdef public bool dead
+    cdef public bool active
+    cdef public bool diagnosed
+    cdef public float infection_date
+    cdef public float diagnosis_date
+    cdef public float hospitalization_date
+    cdef public float death_date
+    cdef public float recovery_date
+    cdef public size_t transmitted
+    cdef public bool in_hospital_bed
+    cdef public bool in_icu
+    cdef public bool in_ventilator
+    cdef public bool avoidable_death
+    cdef float time_until_symptoms
+    cdef float incubation_time
+    cdef object hospital_bed_req
+    cdef object attention_req
+    cdef object icu_req
+    cdef object ventilator_req
 
     def __cinit__(self, object env, object age_group, Home home):
         self.env = env
         self.sim_consts = env.sim_params.constants
-        self.succeptible = True  # sem imunidade
-        self.infectado = False  # teve infeccao detectavel
-        self.internado = False  # em internacao no momento
-        self.recuperado = False  # teve infeccao detectavel e nao tem mais nem morreu
-        self.em_incubacao = False  # infectado aguardando inicio do periodo de transmissao
-        self.em_contagio = False  # em transmissao no momento
-        self.em_isolamento = False  # em isolamento domiciliar
-        self.morto = False  # morto por Covid
-        self.ativo = False  # Infectado que ainda nao morreu nem se recuperou
-        self.diagnosticado = False
-        self.data_contagio = 0.0
-        self.data_diagnostico = 0.0
-        self.data_internacao = 0.0
-        self.data_morte = 0.0
-        self.data_recuperacao = 0.0
-        self.transmitidos = 0  # numero de pessoas infectadas pelo paciente
-        self.em_leito = False #robson
-        self.em_uti = False #robson
-        self.em_ventila_mec = False #robson
-        self.morte_evitavel = False
-        self.atencao_req = None
-        self.leito_req = None
-        self.uti_req = None
-        self.ventilacao_req = None
+        self.susceptible = True  # sem imunidade
+        self.infected = False  # teve infeccao detectavel
+        self.hospitalized = False  # em internacao no momento
+        self.recovered = False  # teve infeccao detectavel e nao tem mais nem morreu
+        self.in_incubation = False  # infected aguardando inicio do periodo de transmissao
+        self.contagious = False  # em transmissao no momento
+        self.in_isolation = False  # em isolamento domiciliar
+        self.dead = False  # dead por Covid
+        self.active = False  # infected que ainda nao morreu nem se recuperou
+        self.diagnosed = False
+        self.infection_date = 0.0
+        self.diagnosis_date = 0.0
+        self.hospitalization_date = 0.0
+        self.death_date = 0.0
+        self.recovery_date = 0.0
+        self.transmitted = 0  # numero de people infectadas pelo paciente
+        self.in_hospital_bed = False #robson
+        self.in_icu = False #robson
+        self.in_ventilator = False #robson
+        self.avoidable_death = False
+        self.attention_req = None
+        self.hospital_bed_req = None
+        self.icu_req = None
+        self.ventilator_req = None
 
         self.age_group = age_group
         self.isolation_propensity = self.get_isolation_propensity()
-        self.expected_outcome = get_outcome(self.age_group.severidades)
-        home.adicionar_pessoa(self)
+        self.expected_outcome = get_outcome(self.age_group.severitys)
+        home.add_person(self)
 
     cdef get_isolation_propensity(self):
-        return sample_from_logit_uniform(self.age_group.adesao_isolamento)
+        return sample_from_logit_uniform(self.age_group.isolation_adherence)
 
-    cdef calcular_parametros_do_caso(self):
-        self.tempo_ate_sintomas = np.random.weibull(
+    cdef calculate_case_params(self):
+        self.time_until_symptoms = np.random.weibull(
             self.sim_consts.symptoms_delay_shape
             ) * self.sim_consts.symptoms_delay_scale
-        atraso_sintomas = np.random.random()
-        self.tempo_incubacao = self.tempo_ate_sintomas * (
-            1.0 - atraso_sintomas * self.sim_consts.incubation_to_symptoms_variable_fraction)
+        symptoms_delay = np.random.random()
+        self.tempo_incubacao = self.time_until_symptoms * (
+            1.0 - symptoms_delay * self.sim_consts.incubation_to_symptoms_variable_fraction)
 
     def expose_to_virus(self):
-        if not self.succeptible:
+        if not self.susceptible:
             return False
-        self.succeptible = False
-        self.data_contagio = self.env.now
+        self.susceptible = False
+        self.infection_date = self.env.now
         if self.expected_outcome == Outcome.NO_INFECTION:
             return False        
-        self.calcular_parametros_do_caso()
-        self.infectado = True
-        self.ativo = True
-        self.env.process(self.rodar_contaminacao())
+        self.calculate_case_params()
+        self.infected = True
+        self.active = True
+        self.env.process(self.run_contagion())
         return True
 
-    def rodar_contaminacao(self):
-        self.em_incubacao = True
+    def run_contagion(self):
+        self.in_incubation = True
         yield self.env.timeout(self.tempo_incubacao)
-        self.em_incubacao = False
-        self.em_contagio = True
-        self.env.process(self.rodar_contagio_casa())
-        self.env.process(self.rodar_contagio_na_rua()) 
+        self.in_incubation = False
+        self.contagious = True
+        self.env.process(self.run_contagion_home())
+        self.env.process(self.run_contagion_street()) 
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
-        self.configurar_evolucao()
+        self.configure_evolicuon()
         yield self.env.timeout(contagion_duration)
-        self.em_contagio = False
+        self.contagious = False
 
-    cdef configurar_evolucao(self):
+    cdef configure_evolicuon(self):
         if self.expected_outcome == Outcome.DEATH:
-            self.configurar_evolucao_morte()
+            self.configure_evolicuon_death()
         elif self.expected_outcome == Outcome.VENTILATION:
-            self.configurar_evolucao_ventilacao()
+            self.configure_evolicuon_ventilation()
         elif self.expected_outcome == Outcome.INTENSIVE_CARE:
-            self.configurar_evolucao_uti()
+            self.configure_evolicuon_icu()
         elif self.expected_outcome == Outcome.SEVERE:
-            self.configurar_evolucao_internacao()
+            self.configure_evolicuon_hospitalization()
         elif self.expected_outcome == Outcome.MODERATE:
-            self.configurar_evolucao_moderado_em_casa()
-        elif self.expected_outcome == Outcome.MODERATE:
-            self.configurar_evolucao_leve_em_casa()
+            self.configure_evolicuon_moderate_at_home()
+        elif self.expected_outcome == Outcome.MILD:
+            self.configure_evolicuon_mild_at_home()
 
-    cdef configurar_evolucao_morte(self):
-        tempo_desfecho = np.random.weibull(2) * 17  # 15 dias
-        tempo_ate_internacao = tempo_desfecho * 0.33  # 5 dias
-        self.env.process(self.rodar_internacao(tempo_ate_internacao))
-        tempo_ate_uti_e_ventilacao = tempo_desfecho * 0.47  # 8 dias na ventilacao
-        self.env.process(self.rodar_ventilacao(tempo_ate_uti_e_ventilacao))
-        self.env.process(self.rodar_morte(tempo_desfecho))
+    cdef configure_evolicuon_death(self):
+        time_until_outcome = np.random.weibull(2) * 17  # 15 dias
+        time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
+        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        time_until_icu_and_ventilation = time_until_outcome * 0.47  # 8 dias na ventilacao
+        self.env.process(self.run_ventilation(time_until_icu_and_ventilation))
+        self.env.process(self.run_death(time_until_outcome))
 
-    cdef configurar_evolucao_ventilacao(self):
-        tempo_desfecho = np.random.weibull(2) * 36  # 32 dias
-        tempo_ate_internacao = tempo_desfecho * 0.2  # 6 dias
-        self.env.process(self.rodar_internacao(tempo_ate_internacao))
-        tempo_ate_uti_e_ventilacao = tempo_desfecho * 0.2627  # 8 dias
-        self.env.process(self.rodar_ventilacao(tempo_ate_uti_e_ventilacao))
-        tempo_ate_uti_sem_ventilacao = tempo_desfecho * 0.5113  # 16 dias
-        self.env.process(self.rodar_sair_da_ventilacao(tempo_ate_uti_sem_ventilacao))
-        tempo_ate_fim_uti = tempo_desfecho * 0.7125  # 22 dias
-        self.env.process(self.rodar_sair_da_uti(tempo_ate_fim_uti))
-        self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
+    cdef configure_evolicuon_ventilation(self):
+        time_until_outcome = np.random.weibull(2) * 36  # 32 dias
+        time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
+        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        time_until_icu_and_ventilation = time_until_outcome * 0.2627  # 8 dias
+        self.env.process(self.run_ventilation(time_until_icu_and_ventilation))
+        time_until_icu_without_ventilation = time_until_outcome * 0.5113  # 16 dias
+        self.env.process(self.run_leave_ventilation(time_until_icu_without_ventilation))
+        time_until_icu_ends = time_until_outcome * 0.7125  # 22 dias
+        self.env.process(self.run_leave_icu(time_until_icu_ends))
+        self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configurar_evolucao_uti(self):
-        tempo_desfecho = np.random.weibull(2) * 34  # 30 dias  
-        tempo_ate_internacao = tempo_desfecho * 0.2  # 6 dias
-        self.env.process(self.rodar_internacao(tempo_ate_internacao))
-        tempo_ate_uti = tempo_desfecho * 0.266  # 8 dias
-        self.env.process(self.rodar_entrar_na_uti(tempo_ate_uti))
-        tempo_ate_fim_uti = tempo_desfecho * 0.717  # 20 dias
-        self.env.process(self.rodar_sair_da_uti(tempo_ate_fim_uti))
-        self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
+    cdef configure_evolicuon_icu(self):
+        time_until_outcome = np.random.weibull(2) * 34  # 30 dias  
+        time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
+        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        tempo_ate_icu = time_until_outcome * 0.266  # 8 dias
+        self.env.process(self.run_enter_icu(tempo_ate_icu))
+        time_until_icu_ends = time_until_outcome * 0.717  # 20 dias
+        self.env.process(self.run_leave_icu(time_until_icu_ends))
+        self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configurar_evolucao_internacao(self):
-        tempo_desfecho = np.random.weibull(2) * 33  # 29 dias  
-        tempo_ate_internacao = tempo_desfecho * 0.25  # 7 dias
-        self.env.process(self.rodar_internacao(tempo_ate_internacao))
-        self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
+    cdef configure_evolicuon_hospitalization(self):
+        time_until_outcome = np.random.weibull(2) * 33  # 29 dias  
+        time_until_hospitalization = time_until_outcome * 0.25  # 7 dias
+        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        self.env.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configurar_evolucao_moderado_em_casa(self):
-        tempo_desfecho = np.random.weibull(2) * 20  # 18 dias  
-        self.env.process(self.rodar_curar(tempo_desfecho))
-        self.request_diagnosis()
+    cdef configure_evolicuon_moderate_at_home(self):
+        time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
+        self.env.process(self.run_cure(time_until_outcome))
+        self.env.request_exam(1, self)
 
-    cdef configurar_evolucao_leve_em_casa(self):
-        tempo_desfecho = np.random.weibull(2) * 15  # 18 dias  
-        self.env.process(self.rodar_curar(tempo_desfecho))
-
-    def request_diagnosis(self):
-        diagnosis_delay = self.age_group.diagnosis_delay
-        if diagnosis_delay is None:
-            self.env.solicitar_exame(0, self)
-        else:
-            self.env.process(self.wait_for_diagnosis(diagnosis_delay))
-
-    def wait_for_diagnosis(self, float diagnosis_delay):
-        cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
-        yield self.env.timeout(diagnosis_delay)
-        self.diagnosticado = True
-
-    def rodar_internacao(self, tempo_ate_internacao):
-        yield self.env.timeout(tempo_ate_internacao)
-        if self.morto:
+    cdef configure_evolicuon_mild_at_home(self):
+        time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
+        self.env.process(self.run_cure(time_until_outcome))
+    
+    def run_hospitalization(self, time_until_hospitalization):
+        yield self.env.timeout(time_until_hospitalization)
+        if self.dead:
             return
-        if self.env.simula_capacidade:
-            self.env.process(self.requisitar_atencao())
-            yield from self.requisitar_leito()
+        if self.env.simulate_capacity:
+            self.env.process(self.request_attention())
+            yield from self.request_hospital_bed()
         else:
-            self.internado = True
-            self.data_internacao = self.env.now
-            self.request_diagnosis()
+            self.hospitalized = True
+            self.hospitalization_date = self.env.now
+            self.env.request_exam(0, self)
   
-    def requisitar_atencao(self):
-        atencao_req = self.env.atencao.request(Outcome.DEATH - self.expected_outcome)
-        request = atencao_req.__enter__()
-        self.atencao_req = atencao_req
-        resultado = yield request | self.env.timeout(np.random.exponential(2.0))
-        if request in resultado:
-            if self.atencao_req:
-                self.internado = True
-                self.data_internacao = self.env.now
-            self.request_diagnosis()
+    def request_attention(self):
+        attention_req = self.env.attention.request(Outcome.DEATH - self.expected_outcome)
+        request = attention_req.__enter__()
+        self.attention_req = attention_req
+        result = yield request | self.env.timeout(np.random.exponential(2.0))
+        if request in result:
+            if self.attention_req:
+                self.hospitalized = True
+                self.hospitalization_date = self.env.now
+            self.env.request_exam(0, self)
         else:
-            if self.atencao_req:
-                atencao_req.__exit__(None, None, None)
-                self.atencao_req = None
+            if self.attention_req:
+                attention_req.__exit__(None, None, None)
+                self.attention_req = None
             if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.sim_consts.survival_probability_in_severe_overcapacity:
-                return  # Sorte - o paciente se recuperou em home
-            self.morte_evitavel = True
-            yield from self.rodar_morte(0)
+                return  # Luck - patient recovered by itself
+            self.avoidable_death = True
+            yield from self.run_death(0)
 
-        
-    def requisitar_leito(self):
-        leito_req = self.env.leito.request(8 - self.expected_outcome)
-        request = leito_req.__enter__()
-        self.leito_req = leito_req
-        resultado = yield request | self.env.timeout(np.random.exponential(2.0))
-        if request in resultado:
-            if self.leito_req:
-                self.em_leito = True
+
+    def request_hospital_bed(self):
+        hospital_bed_req = self.env.hospital_bed.request(8 - self.expected_outcome)
+        request = hospital_bed_req.__enter__()
+        self.hospital_bed_req = hospital_bed_req
+        result = yield request | self.env.timeout(np.random.exponential(2.0))
+        if request in result:
+            if self.hospital_bed_req:
+                self.in_hospital_bed = True
         else:
-            if self.leito_req:
-                leito_req.__exit__(None, None, None)
-                self.leito_req = None
+            if self.hospital_bed_req:
+                hospital_bed_req.__exit__(None, None, None)
+                self.hospital_bed_req = None
             if self.expected_outcome == Outcome.SEVERE and np.random.random() < self.sim_consts.survival_probability_without_hospital_bed:
                 return  # Sorte - o paciente se recuperou em home
-            self.morte_evitavel = True
-            yield from self.rodar_morte(0)
+            self.avoidable_death = True
+            yield from self.run_death(0)
 
-    def requisitar_uti(self):
-        uti_req = self.env.uti.request(8 - self.expected_outcome)
-        request = uti_req.__enter__()
-        self.uti_req = uti_req
-        resultado = yield request | self.env.timeout(np.random.exponential(1.0))
-        if request in resultado:
-            if self.uti_req:
-                self.em_uti = True
+    def request_icu(self):
+        icu_req = self.env.icu.request(8 - self.expected_outcome)
+        request = icu_req.__enter__()
+        self.icu_req = icu_req
+        result = yield request | self.env.timeout(np.random.exponential(1.0))
+        if request in result:
+            if self.icu_req:
+                self.in_icu = True
         else:
-            if self.uti_req:
-                uti_req.__exit__(None, None, None)
-                self.uti_req = None
-            if np.random.random() < self.sim_consts.survival_probability_without_intensive_care_bed:
-                return  # Sorte - o paciente se recuperou em home
-            self.morte_evitavel = True
-            yield from self.rodar_morte(0)
+            if self.icu_req:
+                icu_req.__exit__(None, None, None)
+                self.icu_req = None
+            if np.random.random() < < self.sim_consts.survival_probability_without_intensive_care_bed:
+                return  # Luck - patient recovered by itself
+            self.avoidable_death = True
+            yield from self.run_death(0)
 
-    def requisitar_ventilacao(self):
-        ventilacao_req = self.env.ventilacao.request(8 - self.expected_outcome)
-        request = ventilacao_req.__enter__()
-        self.ventilacao_req = ventilacao_req
-        resultado = yield request | self.env.timeout(np.random.exponential(1.0))
-        if request in resultado:
-            if self.ventilacao_req:
-                self.em_ventila_mec = True
+    def request_ventilator(self):
+        ventilator_req = self.env.ventilator.request(8 - self.expected_outcome)
+        request = ventilator_req.__enter__()
+        self.ventilator_req = ventilator_req
+        result = yield request | self.env.timeout(np.random.exponential(1.0))
+        if request in result:
+            if self.ventilator_req:
+                self.in_ventilator = True
         else:
-            if self.ventilacao_req:
-                ventilacao_req.__exit__(None, None, None)
-                self.ventilacao_req = None
+            if self.ventilator_req:
+                ventilator_req.__exit__(None, None, None)
+                self.ventilator_req = None
             if np.random.random() < self.sim_consts.survival_probability_without_ventilator:
-                return  # Sorte - o paciente se recuperou em home
-            self.morte_evitavel = True
-            yield from self.rodar_morte(0)
+                return  # Luck - patient recovered by itself
+            self.avoidable_death = True
+            yield from self.run_death(0)
 
-    def rodar_ventilacao(self, tempo_ate_ventilacao):
+    def run_ventilation(self, tempo_ate_ventilacao):
         yield self.env.timeout(tempo_ate_ventilacao)
-        if self.morto:
+        if self.dead:
             return
-        if self.env.simula_capacidade:
-            self.env.process(self.requisitar_uti())
-            self.env.process(self.requisitar_ventilacao())
+        if self.env.simulate_capacity:
+            self.env.process(self.request_icu())
+            self.env.process(self.request_ventilator())
         else:
-            self.em_ventila_mec = True
-            self.em_uti = True
+            self.in_ventilator = True
+            self.in_icu = True
     
-    def rodar_sair_da_ventilacao(self, tempo_ate_uti_sem_ventilacao):
-        yield self.env.timeout(tempo_ate_uti_sem_ventilacao)
-        if self.morto:
+    def run_leave_ventilation(self, time_until_icu_without_ventilation):
+        yield self.env.timeout(time_until_icu_without_ventilation)
+        if self.dead:
             return
-        if self.ventilacao_req:
-            self.ventilacao_req.__exit__(None, None, None)
-            self.ventilacao_req = None
-        self.em_ventila_mec = False
+        if self.ventilator_req:
+            self.ventilator_req.__exit__(None, None, None)
+            self.ventilator_req = None
+        self.in_ventilator = False
     
-    def rodar_sair_da_uti(self, tempo_ate_fim_uti):
-        yield self.env.timeout(tempo_ate_fim_uti)
-        if self.morto:
+    def run_leave_icu(self, time_until_icu_ends):
+        yield self.env.timeout(time_until_icu_ends)
+        if self.dead:
             return
-        if self.uti_req:
-            self.uti_req.__exit__(None, None, None)
-            self.uti_req = None
-        self.em_uti = False
+        if self.icu_req:
+            self.icu_req.__exit__(None, None, None)
+            self.icu_req = None
+        self.in_icu = False
 
-    def rodar_entrar_na_uti(self, tempo_ate_uti):
-        yield self.env.timeout(tempo_ate_uti)
-        if self.morto:
+    def run_enter_icu(self, tempo_ate_icu):
+        yield self.env.timeout(tempo_ate_icu)
+        if self.dead:
             return
-        if self.env.simula_capacidade:
-            yield from self.requisitar_uti()
+        if self.env.simulate_capacity:
+            yield from self.request_icu()
         else:
-            self.em_uti = True
+            self.in_icu = True
 
-    def rodar_sair_do_hospital(self, tempo_alta):
-        yield self.env.timeout(tempo_alta)
-        if self.morto:
+    def run_leave_hospital(self, time_until_discharge_from_hospital):
+        yield self.env.timeout(time_until_discharge_from_hospital)
+        if self.dead:
             return
-        self.ativo = False
-        if self.leito_req:
-            self.leito_req.__exit__(None, None, None)
-            self.leito_req = None
-        if self.atencao_req:
-            self.atencao_req.__exit__(None, None, None)
-            self.atencao_req = None
-        if self.internado:    
-            self.data_recuperacao = self.env.now
-        self.internado = False
-        self.em_leito = False
+        self.active = False
+        if self.hospital_bed_req:
+            self.hospital_bed_req.__exit__(None, None, None)
+            self.hospital_bed_req = None
+        if self.attention_req:
+            self.attention_req.__exit__(None, None, None)
+            self.attention_req = None
+        if self.hospitalized:    
+            self.recovery_date = self.env.now
+        self.hospitalized = False
+        self.in_hospital_bed = False
 
-    def rodar_curar(self, tempo_alta):
-        yield self.env.timeout(tempo_alta)
-        if self.morto:
+    def run_cure(self, time_until_discharge_from_hospital):
+        yield self.env.timeout(time_until_discharge_from_hospital)
+        if self.dead:
             return
-        self.ativo = False 
+        self.active = False 
     
-    def rodar_morte(self, tempo_ate_morte):
-        yield self.env.timeout(tempo_ate_morte)
-        if self.morto:
+    def run_death(self, time_until_death):
+        yield self.env.timeout(time_until_death)
+        if self.dead:
             return
-        self.ativo = False 
-        self.em_contagio = False
-        if self.env.simula_capacidade:
-            if self.atencao_req:
-                self.atencao_req.__exit__(None, None, None)
-                self.atencao_req = None        
-            if self.leito_req:
-                self.leito_req.__exit__(None, None, None)
-                self.leito_req = None
-            if self.uti_req:
-                self.uti_req.__exit__(None, None, None)
-                self.uti_req = None
-            if self.ventilacao_req:
-                self.ventilacao_req.__exit__(None, None, None)
-                self.ventilacao_req = None
-        self.internado = False
-        self.em_leito = False
-        self.em_uti = False
-        self.em_ventila_mec = False
-        self.succeptible = False
-        self.morto = True
-        self.data_morte = self.env.now
+        self.active = False 
+        self.contagious = False
+        if self.env.simulate_capacity:
+            if self.attention_req:
+                self.attention_req.__exit__(None, None, None)
+                self.attention_req = None        
+            if self.hospital_bed_req:
+                self.hospital_bed_req.__exit__(None, None, None)
+                self.hospital_bed_req = None
+            if self.icu_req:
+                self.icu_req.__exit__(None, None, None)
+                self.icu_req = None
+            if self.ventilator_req:
+                self.ventilator_req.__exit__(None, None, None)
+                self.ventilator_req = None
+        self.hospitalized = False
+        self.in_hospital_bed = False
+        self.in_icu = False
+        self.in_ventilator = False
+        self.susceptible = False
+        self.dead = True
+        self.death_date = self.env.now
     
-    def rodar_contagio_casa(self):
-        while self.em_contagio and not self.internado:
-            self.contaminar_em_casa()
+    def run_contagion_home(self):
+        while self.contagious and not self.hospitalized:
+            self.infect_in_home()
             yield self.env.timeout(1.0)
 
-    def contaminar_em_casa(self):
-        for pessoa in self.home.moradores:
-            if not (pessoa is self):
+    def infect_in_home(self):
+        for person in self.home.residents:
+            if not (person is self):
                 if np.random.random() < self.sim_consts.home_contamination_daily_probability:
-                    transmitido = pessoa.expose_to_virus()
-                    if transmitido:
-                        self.transmitidos += 1
-            #            print(self.env.now, 'Contagio em home')
+                    transmitted = person.expose_to_virus()
+                    if transmitted:
+                        self.transmitted += 1
 
-    def testar_isolamento(self):
-        return self.em_isolamento and np.random.random() < self.age_group.efetividade_isolamento
+    def test_isolation(self):
+        return self.in_isolation and np.random.random() < self.age_group.isolation_effectiveness
 
-    def rodar_contagio_na_rua(self):
-        cdef Person contato_na_rua
+    def run_contagion_street(self):
+        cdef Person contact_on_street
         yield self.env.timeout(
-            np.random.exponential(self.env.tempo_medio_entre_contagios)
+            np.random.exponential(self.env.serial_interval)
             )
-        while self.em_contagio and not self.internado:
-            if not self.testar_isolamento():
-                contato_na_rua = escolher_contato_na_rua(self, self.env.pessoas)
-                if contato_na_rua.succeptible and not (contato_na_rua.testar_isolamento() 
-                                                    or contato_na_rua.internado):
-                    if contato_na_rua.expose_to_virus():
-            #          print(self.env.now, 'Contagio na rua')
-                        self.transmitidos += 1
+        while self.contagious and not self.hospitalized:
+            if not self.test_isolation():
+                contact_on_street = choose_contact_on_street(self, self.env.people)
+                if contact_on_street.susceptible and not (contact_on_street.test_isolation() 
+                                                          or contact_on_street.hospitalized):
+                    if contact_on_street.expose_to_virus():
+                        self.transmitted += 1
             yield self.env.timeout(
-                np.random.exponential(self.env.tempo_medio_entre_contagios)
-                )
+                np.random.exponential(self.env.serial_interval)
+            )
 
 ########
 ##  Logs
 ########
 
-cdef int get_pessoa(Person pessoa):
+cdef int get_person(Person person):
     return 1
 
-cdef int get_infectados(Person pessoa):
-    return pessoa.infectado
+cdef int get_infected(Person person):
+    return person.infected
 
-cdef int get_em_isolamento(Person pessoa):
-    return pessoa.em_isolamento
+cdef int get_in_isolation(Person person):
+    return person.in_isolation
 
-cdef int get_diagnosticados(Person pessoa):
-    return pessoa.diagnosticado
+cdef int get_diagnosed(Person person):
+    return person.diagnosed
 
-cdef int get_mortos(Person pessoa):
-    return pessoa.morto
+cdef int get_death(Person person):
+    return person.dead
 
-cdef int get_mortos_confirmados(Person pessoa):
-    return pessoa.morto and pessoa.diagnosticado
+cdef int get_confirmed_death(Person person):
+    return person.dead and person.diagnosed
 
-cdef int get_internados(Person pessoa):
-    return pessoa.internado
+cdef int get_hospitalized(Person person):
+    return person.hospitalized
 
-cdef int get_ventilados(Person pessoa):
-    return pessoa.em_ventila_mec
+cdef int get_in_ventilator(Person person):
+    return person.in_ventilator
 
-cdef int get_em_uti(Person pessoa):
-    return pessoa.em_uti
+cdef int get_in_icu(Person person):
+    return person.in_icu
 
-cdef int get_em_leito(Person pessoa):
-    return pessoa.em_leito
+cdef int get_in_hospital_bed(Person person):
+    return person.in_hospital_bed
 
-cdef int get_em_contagio(Person pessoa):
-    return pessoa.em_contagio
+cdef int get_contagious(Person person):
+    return person.contagious
 
-cdef int get_contagio_finalizado(Person pessoa):
-    return pessoa.infectado and not (pessoa.em_contagio or pessoa.em_incubacao)
+cdef int get_finished_contagion(Person person):
+    return person.infected and not (person.contagious or person.in_incubation)
 
-cdef int get_rt(Person pessoa):
-    return pessoa.transmitidos if pessoa.infectado and not (pessoa.em_contagio or pessoa.em_incubacao) else 0
+cdef int get_rt(Person person):
+    return person.transmitted if person.infected and not (person.contagious or person.in_incubation) else 0
 
-cdef int get_succeptible(Person pessoa):
-    return pessoa.succeptible
+cdef int get_susceptible(Person person):
+    return person.susceptible
 
 
-cdef list fmetricas = [
-    get_pessoa,
-    get_infectados,
-    get_em_isolamento,
-    get_diagnosticados,
-    get_mortos,
-    get_mortos_confirmados,
-    get_internados,
-    get_ventilados,
-    get_em_uti,
-    get_em_contagio,
-    get_contagio_finalizado,
+cdef list fmetrics = [
+    get_person,
+    get_infected,
+    get_in_isolation,
+    get_diagnosed,
+    get_death,
+    get_confirmed_death,
+    get_hospitalized,
+    get_in_ventilator,
+    get_in_icu,
+    get_in_hospital_bed,
+    get_contagious,
+    get_finished_contagion,
     get_rt,
-    get_succeptible,
-    get_em_leito,
+    get_susceptible,
 ]
 
 
@@ -663,37 +649,37 @@ MEASUREMENTS = [
     'infected',
     'in_isolation',
     'diagnosed',
-    'deaths',
-    'confirmed_deaths',
-    'inpatients',
-    'ventilated',
-    'in_intensive_care',
-    'contagious',
-    'contagion_ended',
-    'transmited',
-    'succeptible',
+    'death',
+    'confirmed_death',
+    'hospitalized',
+    'in_ventilator',
+    'in_icu',
     'in_hospital_bed',
+    'contagious',
+    'finished_contagion',
+    'transmitted',
+    'susceptible',
 ]
 
 
-cdef _log_estatisticas(size_t dia, np.ndarray stats, object populacoes):
-    global fmetricas
-    stop = len(fmetricas)
-    cdef int indice_faixa
+cdef _log_stats(size_t day, np.ndarray stats, object populations):
+    global fmetrics
+    stop = len(fmetrics)
+    cdef int age_index
     cdef size_t i
     cdef int value
     
-    for indice_populacao, pessoas in enumerate(populacoes.values()):
-        for pessoa in pessoas:
-            indice_faixa = pessoa.age_group.indice_faixa
+    for population_index, people in enumerate(populations.values()):
+        for person in people:
+            age_index = person.age_group.index
             metric_index = 0
             while metric_index < stop:
-                value = fmetricas[metric_index](pessoa)
+                value = fmetrics[metric_index](person)
                 if value:
-                    stats[indice_populacao, metric_index, indice_faixa, dia] += value
-                metric_index += 1          
+                    stats[population_index, metric_index, age_index, day] += value
+                metric_index += 1
 
                 
-def log_estatisticas(env):
-    dia = int(env.now+0.1) - env.d0
-    _log_estatisticas(dia, env.stats, env.populacoes)
+def log_stats(env):
+    day = int(env.now+0.1) - env.d0
+    _log_stats(day, env.stats, env.populations)
