@@ -8,8 +8,8 @@ extensions = [
             "covidsimulation.simulation",
             ["covidsimulation/simulation.pyx"],
             include_dirs=[numpy.get_include()],
-            extra_compile_args=["-O3", "-stdlib=libc++", "-std=c++11"],
-            extra_link_args=["-O2", "-march=native", "-stdlib=libc++"],
+            extra_compile_args=["-O3", "-std=c++11"],
+            extra_link_args=["-O2", "-march=native"],
             language="c++"
         ),
 ]
