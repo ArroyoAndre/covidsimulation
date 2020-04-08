@@ -1,8 +1,8 @@
 
 class AgeGroup:
-  def __init__(self, indice_faixa, severidades, adesao_isolamento, efetividade_isolamento, diagnosis_delay=None):
-    self.indice_faixa = indice_faixa
-    self.severidades = severidades
-    self.adesao_isolamento = adesao_isolamento
-    self.efetividade_isolamento = efetividade_isolamento
-    self.diagnosis_delay = diagnosis_delay  # if set, lab is ignored
+  def __init__(self, index, severity, isolation_adherence, isolation_effectiveness, diagnosis_delay=None):
+    self.index = index
+    self.severity = severity
+    self.isolation_adherence = isolation_adherence
+    self.isolation_effectiveness = isolation_effectiveness
+    self.diagnosis_delay = diagnosis_dealy  # If set, lab is ignored
