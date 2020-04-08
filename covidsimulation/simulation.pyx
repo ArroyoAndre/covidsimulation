@@ -251,25 +251,25 @@ cdef class Person:
     def __cinit__(self, object env, object age_group, Home home):
         self.env = env
         self.sim_consts = env.sim_params.constants
-        self.susceptible = True  # sem imunidade
-        self.infected = False  # teve infeccao detectavel
-        self.hospitalized = False  # em internacao no momento
-        self.recovered = False  # teve infeccao detectavel e nao tem mais nem morreu
-        self.in_incubation = False  # infected aguardando inicio do periodo de transmissao
-        self.contagious = False  # em transmissao no momento
-        self.in_isolation = False  # em isolamento domiciliar
-        self.dead = False  # dead por Covid
-        self.active = False  # infected que ainda nao morreu nem se recuperou
+        self.susceptible = True 
+        self.infected = False
+        self.hospitalized = False
+        self.recovered = False
+        self.in_incubation = False
+        self.contagious = False
+        self.in_isolation = False
+        self.dead = False 
+        self.active = False  # infected that neither died nor recovered yet
         self.diagnosed = False
         self.infection_date = 0.0
         self.diagnosis_date = 0.0
         self.hospitalization_date = 0.0
         self.death_date = 0.0
         self.recovery_date = 0.0
-        self.transmitted = 0  # numero de people infectadas pelo paciente
-        self.in_hospital_bed = False #robson
-        self.in_icu = False #robson
-        self.in_ventilator = False #robson
+        self.transmitted = 0
+        self.in_hospital_bed = False
+        self.in_icu = False
+        self.in_ventilator = False
         self.avoidable_death = False
         self.attention_req = None
         self.hospital_bed_req = None
@@ -281,7 +281,7 @@ cdef class Person:
 >>>>>>> more translations
         self.age_group = age_group
         self.isolation_propensity = self.get_isolation_propensity()
-        self.expected_outcome = get_outcome(self.age_group.severitys)
+        self.expected_outcome = get_outcome(self.age_group.severity)
         home.add_person(self)
 
     cdef get_isolation_propensity(self):
@@ -292,7 +292,7 @@ cdef class Person:
             self.sim_consts.symptoms_delay_shape
             ) * self.sim_consts.symptoms_delay_scale
         symptoms_delay = np.random.random()
-        self.tempo_incubacao = self.time_until_symptoms * (
+        self.incubation_time = self.time_until_symptoms * (
             1.0 - symptoms_delay * self.sim_consts.incubation_to_symptoms_variable_fraction)
 
     def expose_to_virus(self):
@@ -310,7 +310,7 @@ cdef class Person:
 
     def run_contagion(self):
         self.in_incubation = True
-        yield self.env.timeout(self.tempo_incubacao)
+        yield self.env.timeout(self.incubation_time)
         self.in_incubation = False
         self.contagious = True
         self.env.process(self.run_contagion_home())

@@ -41,5 +41,5 @@ def laboratory(env):
         _, test = env.lab_queue.get()
         if test:
             test.diagnosed = True
-            test.diagnostic_date = env.now
+            test.diagnosis_date = env.now
             env.positive_exams += 1
