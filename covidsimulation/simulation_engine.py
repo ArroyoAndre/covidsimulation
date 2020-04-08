@@ -63,7 +63,7 @@ def get_population(env, population_params):
 
 def generate_people_in_new_house(env, population_params):
     house_size = get_house_size(population_params['house_sizes'])
-    house = cs.Home(population_params['deslocamento'])
+    house = cs.Home(population_params['shift'])
     age_probabilities = population_params['age_probabilities']
     age_risk = population_params['age_risk']
     age_group_house = get_age_group(age_probabilities, age_risk)
@@ -93,7 +93,7 @@ def create_populations(env):
     for population_name, population_params in env.sim_params.population_segments.items():
         for i, age_group in enumerate(population_params['age_risk']):
             age_group_cp = copy(age_group)
-            severity = np.array(age_group_cp.severidades)
+            severity = np.array(age_group_cp.severity)
             age_bias = env.severity_bias * (i - 4)
             new_odds = np.exp(np.log(severity / (1.0 - severity)
                                      ) - env.severity_deviation + age_bias)
@@ -130,7 +130,7 @@ def simulate(params):
     env.ventilator = simpy.resources.resource.PriorityResource(
         env, capacity=int(sim_params.capacity_ventilators * scaling))
     env.icu = simpy.resources.resource.PriorityResource(
-        env, capacity=int(sim_params.capacity_intensive_care * scaling))
+        env, capacity=int(sim_params.capacity_icu * scaling))
     env.process(laboratory(env))
     env.populations = create_populations(env)
     env.stats = get_stats_matrix(env, duration)

@@ -8,7 +8,7 @@ DEFAULT_START_DATE = '2020-03-01'
 DEFAULT_TRANSMISSION_SCALE_DAYS = 0.3  # one new person exposed every Exponential(0.3) days
 DEFAULT_MIN_AGE_GROUP_INITIALLY_INFECTED = 4  # Initial infections occur on 40+ only
 DEFAULT_CAPACITY_VENTILATORS = 2000  # The default might make no sense depending on the size of the population
-DEFAULT_CAPACITY_INTENSIVE_CARE = 3000  # The default might make no sense depending on the size of the population
+DEFAULT_CAPACITY_ICU = 3000  # The default might make no sense depending on the size of the population
 DEFAULT_CAPACITY_HOSPITAL_BEDS = 20000  # The default might make no sense depending on the size of the population
 DEFAULT_CAPACITY_HOSPITAL_MAX = 80000  # The default might make no sense depending on the size of the population
 
@@ -21,7 +21,7 @@ class Parameters:
     transmission_scale_days: float
     min_age_group_initially_infected: int
     capacity_ventilators: int
-    capacity_intensive_care: int
+    capacity_icu: int
     capacity_hospital_beds: int
     capacity_hospital_max: int  # Maximum overcapacity
     total_inhabitants: int
@@ -35,7 +35,7 @@ class Parameters:
         transmission_scale_days=DEFAULT_TRANSMISSION_SCALE_DAYS,
         min_age_group_initially_infected=DEFAULT_MIN_AGE_GROUP_INITIALLY_INFECTED,
         capacity_ventilators=DEFAULT_CAPACITY_VENTILATORS,
-        capacity_intensive_care=DEFAULT_CAPACITY_INTENSIVE_CARE,
+        capacity_icu=DEFAULT_CAPACITY_ICU,
         capacity_hospital_beds=DEFAULT_CAPACITY_HOSPITAL_BEDS,
         capacity_hospital_max=DEFAULT_CAPACITY_HOSPITAL_MAX,
     ):
