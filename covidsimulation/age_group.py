@@ -1,6 +1,7 @@
 
 class AgeGroup:
-  def __init__(self, index, severity, isolation_adherence, isolation_effectiveness, diagnosis_delay=None):
+  def __init__(self, index, severity, isolation_adherence, isolation_effectiveness, 
+               diagnosis_delay=None):
     self.index = index
     self.severity = severity
     self.isolation_adherence = isolation_adherence
