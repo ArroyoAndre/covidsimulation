@@ -16,7 +16,7 @@ METRICS = {
     'transmitted': ('transmitted', None),
     'susceptible': ('susceptible', None),
     'pc_susceptible': ('susceptible', 'population'),
-    'pc_infected': ('infectaded', 'population'),
+    'pc_infected': ('infected', 'population'),
     'pc_in_isolation': ('in_isolation', 'population'),
     'pc_contagious': ('contagious', 'population'),
     'rt': ('transmited', 'contagion_ended'),
