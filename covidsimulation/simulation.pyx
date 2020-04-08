@@ -108,7 +108,7 @@ cpdef logit_transform_value(double p, double adjustment_logit):
 
 
 cdef sample_from_logit_uniform(double adjustment_logit):
-    cdef float p = rand() / (RAND_MAX + 1.0)
+    cdef double p = (rand() + 1.0) / (RAND_MAX + 2.0)
     return logit_transform_value(p, adjustment_logit)
 
 
