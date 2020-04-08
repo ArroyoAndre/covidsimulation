@@ -47,8 +47,8 @@ class Parameters:
         self.transmission_scale_days = transmission_scale_days
         self.min_age_group_initially_infected = min_age_group_initially_infected
         self.capacity_ventilators = capacity_ventilators
-        self.capacity_intensive_care = capacity_intensive_care
+        self.capacity_icu = capacity_icu
         self.capacity_hospital_beds = capacity_hospital_beds
         self.capacity_hospital_max = capacity_hospital_max
 
-        self.total_inhabitants = sum([p['habitantes'] for p in population_segments.values()])
+        self.total_inhabitants = sum([p['inhabitants'] for p in population_segments.values()])
