@@ -1,5 +1,6 @@
 from typing import List, Dict, Tuple
 from copy import copy
+from functools import partial
 from multiprocessing import Pool, cpu_count
 
 import numpy as np
@@ -102,19 +103,26 @@ def cria_populacoes(env):
   return populacoes
 
 
-def simula(params):
-  tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params, add_noise, sim_number = params
+def simulate(
+        sim_number,
+        sim_params, 
+        distancing_list, 
+        simulation_size,
+        duration, 
+        simulate_capacity, 
+        add_noise, 
+    ):
   for _ in range(sim_number):
     np.random.random()
   cs.seed(sim_number)
   np.random.seed(sim_number)
   env = simpy.Environment()
   env.sim_params = sim_params
-  env.duracao = duracao
-  scaling = tamanho_simulacao / sim_params.total_inhabitants
+  env.duracao = duration
+  scaling = simulation_size / sim_params.total_inhabitants
   env.sim_number = sim_number
   env.d0 = None  # Esperando o dia para iniciar logs
-  env.simula_capacidade = simula_capacidade
+  env.simula_capacidade = simulate_capacity
   env.desvio_severidade = (np.random.random() + np.random.random() - 1.0) * 0.2 if add_noise else 0.0
   env.inclinacao_severidade = (np.random.random() - 0.5) * 0.2 if add_noise else 0.0
   env.desvio_isolamento = np.random.random() if add_noise else 0.0 # incerteza na efetividade do isolamento
@@ -128,38 +136,45 @@ def simula(params):
   env.uti = simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_intensive_care * scaling))
   env.process(laboratorio(env))
   env.populacoes = cria_populacoes(env)
-  env.stats = get_matriz_estatisticas(env, duracao)
+  env.stats = get_matriz_estatisticas(env, duration)
   env.pessoas = []
   for pessoas in env.populacoes.values():
     env.pessoas.extend(pessoas)
   env.process(monitorar_populacao(env))
-  for dia_inicio, fator_isolamento in isolamentos:
+  for dia_inicio, fator_isolamento in distancing_list:
     env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
-  env.run(until=duracao)
-  env.run(until=duracao+env.d0+0.011)
+  env.run(until=duration)
+  env.run(until=duration+env.d0+0.011)
   return env.stats / env.scaling
 
 
 def run_simulations(
         sim_params: Parameters, 
-        isolamentos: List[Tuple[float, float]], 
-        simula_capacidade=False, 
-        duracao: int=80, 
-        n: int=4, # For final presentation purposes, a value greater than 10 is recommended 
-        tamanho_simulacao: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
-        nome_simulacao=None,
+        distancing_list: List[Tuple[float, float]], 
+        simulate_capacity=False, 
+        duration: int=80, 
+        number_of_simulations: int=4, # For final presentation purposes, a value greater than 10 is recommended 
+        simulation_size: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
+        fpath=None,
         add_noise=True,  # Simulate uncertainty about main parameters and constants
 ):
-    params = [tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params, add_noise]
+    simulate_with_params = partial(simulate,
+        sim_params=sim_params, 
+        distancing_list=distancing_list, 
+        simulation_size=simulation_size,
+        duration=duration, 
+        simulate_capacity=simulate_capacity, 
+        add_noise=add_noise, 
+    )
     try:
-        pool = Pool(min(cpu_count(), n))
-        all_stats = pool.map(simula, [params + [i] for i in range(n)])
+        pool = Pool(min(cpu_count(), number_of_simulations))
+        all_stats = pool.map(simulate_with_params, [i for i in range(number_of_simulations)])
     finally:
         pool.close()
         pool.join()
     stats = combina_stats(all_stats, sim_params)
-    if nome_simulacao:
-        stats.save(nome_simulacao)
+    if fpath:
+        stats.save(fpath)
     return stats
 
 
