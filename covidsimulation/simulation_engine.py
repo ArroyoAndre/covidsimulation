@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from copy import copy
 from functools import partial
 from multiprocessing import Pool, cpu_count
@@ -106,7 +106,6 @@ def cria_populacoes(env):
 def simulate(
         sim_number,
         sim_params, 
-        distancing_list, 
         simulation_size,
         duration, 
         simulate_capacity, 
@@ -141,7 +140,7 @@ def simulate(
   for pessoas in env.populacoes.values():
     env.pessoas.extend(pessoas)
   env.process(monitorar_populacao(env))
-  for dia_inicio, fator_isolamento in distancing_list:
+  for dia_inicio, fator_isolamento in sim_params.distancing:
     env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
   env.run(until=duration)
   env.run(until=duration+env.d0+0.011)
@@ -150,17 +149,19 @@ def simulate(
 
 def run_simulations(
         sim_params: Parameters, 
-        distancing_list: List[Tuple[float, float]], 
+        distancing_list: Optional[List[Tuple[float, float]]]=None,  # Set to override sim_param's default distancing
         simulate_capacity=False, 
         duration: int=80, 
         number_of_simulations: int=4, # For final presentation purposes, a value greater than 10 is recommended 
         simulation_size: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
         fpath=None,
         add_noise=True,  # Simulate uncertainty about main parameters and constants
-):
+    ):
+    if not distancing_list is None:
+        sim_params = copy(sim_params)
+        sim_params.distancing = distancing_list
     simulate_with_params = partial(simulate,
         sim_params=sim_params, 
-        distancing_list=distancing_list, 
         simulation_size=simulation_size,
         duration=duration, 
         simulate_capacity=simulate_capacity, 

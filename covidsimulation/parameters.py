@@ -1,5 +1,5 @@
 
-from typing import Dict, List
+from typing import Dict, List, Iterable, Tuple
 from .simulation import SimulationConstants
 
 DEFAULT_D0_INFECTIONS = 2500
@@ -12,9 +12,11 @@ DEFAULT_CAPACITY_INTENSIVE_CARE = 3000  # The default might make no sense depend
 DEFAULT_CAPACITY_HOSPITAL_BEDS = 20000  # The default might make no sense depending on the size of the population
 DEFAULT_CAPACITY_HOSPITAL_MAX = 80000  # The default might make no sense depending on the size of the population
 
+
 class Parameters:
-    population_segments: List[Dict]
+    population_segments: Iterable[Dict]
     constants: SimulationConstants
+    distancing: Iterable[Tuple[int, float]]
     d0_infections: int
     start_date: str
     home_age_cofactor: float
@@ -29,6 +31,7 @@ class Parameters:
     def __init__(self,
         population_segments,
         constants,
+        distancing,
         d0_infections=DEFAULT_D0_INFECTIONS,
         start_date=DEFAULT_START_DATE,
         home_age_cofactor=DEFAULT_HOME_AGE_COFACTOR,
@@ -41,6 +44,7 @@ class Parameters:
     ):
         self.population_segments = population_segments
         self.constants = constants
+        self.distancing = distancing
         self.d0_infections = d0_infections
         self.start_date = start_date
         self.home_age_cofactor = home_age_cofactor

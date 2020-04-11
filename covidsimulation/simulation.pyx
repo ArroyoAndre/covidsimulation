@@ -181,8 +181,33 @@ cdef class SimulationConstants:
         self.contagion_duration_shape = 2.0
         self.contagion_duration_scale = 4.0
 
+    def __hash__(self):
+        return hash((
+            self.home_contamination_daily_probability,
+            self.survival_probability_in_severe_overcapacity,
+            self.survival_probability_without_hospital_bed,
+            self.survival_probability_without_intensive_care_bed,
+            self.survival_probability_without_ventilator,
+            self.symptoms_delay_shape,
+            self.symptoms_delay_scale,
+            self.incubation_to_symptoms_variable_fraction,
+            self.contagion_duration_shape,
+            self.contagion_duration_scale,
+        ))
 
-
+    def __copy__(self):
+        other = SimulationConstants()
+        other.home_contamination_daily_probability = self.home_contamination_daily_probability
+        other.survival_probability_in_severe_overcapacity = self.survival_probability_in_severe_overcapacity
+        other.survival_probability_without_hospital_bed = self.survival_probability_without_hospital_bed
+        other.survival_probability_without_intensive_care_bed = self.survival_probability_without_intensive_care_bed
+        other.survival_probability_without_ventilator = self.survival_probability_without_ventilator
+        other.symptoms_delay_shape = self.symptoms_delay_shape
+        other.symptoms_delay_scale = self.symptoms_delay_scale
+        other.incubation_to_symptoms_variable_fraction = self.incubation_to_symptoms_variable_fraction
+        other.contagion_duration_shape = self.contagion_duration_shape
+        other.contagion_duration_scale = self.contagion_duration_scale
+        return other
 
 ####
 ## Home - a place with geometric coordinates where people live
