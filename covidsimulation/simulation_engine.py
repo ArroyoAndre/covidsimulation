@@ -103,10 +103,11 @@ def cria_populacoes(env):
 
 
 def simula(params):
-  tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params, sim_number = params
+  tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params, add_noise, sim_number = params
   for _ in range(sim_number):
     np.random.random()
   cs.seed(sim_number)
+  np.random.seed(sim_number)
   env = simpy.Environment()
   env.sim_params = sim_params
   env.duracao = duracao
@@ -114,10 +115,11 @@ def simula(params):
   env.sim_number = sim_number
   env.d0 = None  # Esperando o dia para iniciar logs
   env.simula_capacidade = simula_capacidade
-  env.desvio_severidade = (np.random.random() + np.random.random() - 1.0) * 0.2
-  env.inclinacao_severidade = (np.random.random() - 0.5) * 0.2
-  env.desvio_isolamento = np.random.random()  # incerteza na efetividade do isolamento
-  env.tempo_medio_entre_contagios = sim_params.transmission_scale_days + (np.random.random() - 0.5) * 0.1  
+  env.desvio_severidade = (np.random.random() + np.random.random() - 1.0) * 0.2 if add_noise else 0.0
+  env.inclinacao_severidade = (np.random.random() - 0.5) * 0.2 if add_noise else 0.0
+  env.desvio_isolamento = np.random.random() if add_noise else 0.0 # incerteza na efetividade do isolamento
+  env.tempo_medio_entre_contagios = sim_params.transmission_scale_days + (
+      (np.random.random() - 0.5) * 0.1 if add_noise else 0.0) 
   env.fator_isolamento = 0.0
   env.scaling = scaling
   env.atencao = simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_hospital_max * scaling))
@@ -146,8 +148,9 @@ def run_simulations(
         n: int=4, # For final presentation purposes, a value greater than 10 is recommended 
         tamanho_simulacao: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
         nome_simulacao=None,
+        add_noise=True,  # Simulate uncertainty about main parameters and constants
 ):
-    params = [tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params]
+    params = [tamanho_simulacao, duracao, isolamentos, simula_capacidade, sim_params, add_noise]
     try:
         pool = Pool(min(cpu_count(), n))
         all_stats = pool.map(simula, [params + [i] for i in range(n)])
