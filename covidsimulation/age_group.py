@@ -6,4 +6,4 @@ class AgeGroup:
     self.severity = severity
     self.isolation_adherence = isolation_adherence
     self.isolation_effectiveness = isolation_effectiveness
-    self.diagnosis_delay = diagnosis_dealy  # If set, lab is ignored
+    self.diagnosis_delay = diagnosis_delay  # If set, lab is ignored
