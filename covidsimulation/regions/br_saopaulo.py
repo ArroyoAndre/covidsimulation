@@ -111,7 +111,7 @@ PRIVADO = Population(
     seed_infections=10,
 )
 
-population_segments = (PRIVADO, PUBLICO_CD, PUBLICO_E)
+population_segments = [PRIVADO, PUBLICO_CD, PUBLICO_E]
 
 
 distancing = [

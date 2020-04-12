@@ -15,3 +15,11 @@ class Population:
     seed_infections: int
     geosocial_displacement: float
 
+    @property
+    def isolation_propensity_increase(self):
+        pass
+
+    @isolation_propensity_increase.setter
+    def isolation_propensity_increase(self, increase: float):
+        for age_group in self.age_groups:
+            age_group.adesao_isolamento += increase
