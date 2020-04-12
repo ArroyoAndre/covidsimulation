@@ -9,6 +9,7 @@ import simpy
 from . import simulation as cs
 from .lab import laboratorio
 from .parameters import Parameters
+from .population import Population
 from .stats import Stats
 from .metrics import METRICS
 
@@ -53,10 +54,10 @@ def setar_infeccao_inicial(env, pessoas):
         sucesso = alguem.expose_to_virus()
 
 
-def get_populacao(env, param_populacao):
+def get_populacao(env, param_populacao: Population):
   pessoas = []
-  n = int(param_populacao['habitantes'] * env.scaling)
-  infectados_iniciais = param_populacao['infectados_iniciais']
+  n = int(param_populacao.inhabitants * env.scaling)
+  infectados_iniciais = param_populacao.seed_infections
   while len(pessoas) < n:
     pessoas.extend(generate_pessoas_em_nova_casa(env, param_populacao))
   for _ in range(infectados_iniciais):
@@ -64,11 +65,11 @@ def get_populacao(env, param_populacao):
   return pessoas
 
 
-def generate_pessoas_em_nova_casa(env, param_populacao):
-    tamanho_casa = get_tamanho_casa(param_populacao['tamanho_casas'])
-    casa = cs.Home(param_populacao['deslocamento'])
-    probabilidade_faixas = param_populacao['probabilidade_faixas']
-    risco_faixas = param_populacao['risco_faixas']
+def generate_pessoas_em_nova_casa(env, param_populacao: Population):
+    tamanho_casa = get_tamanho_casa(param_populacao.home_size_probabilities)
+    casa = cs.Home(param_populacao.geosocial_displacement)
+    probabilidade_faixas = param_populacao.age_probabilities
+    risco_faixas = param_populacao.age_groups
     grupo_idade_casa = get_grupo_idade(probabilidade_faixas, risco_faixas)
     for _ in range(tamanho_casa):
       grupo_idade = (grupo_idade_casa 
@@ -91,15 +92,15 @@ def aplica_isolamento(env, dia_inicio, fator_isolamento):
 
 def cria_populacoes(env):
   populacoes = {}
-  for nome_populacao, param_populacao in env.sim_params.population_segments.items():
-    for i, grupo_idade in enumerate(param_populacao['risco_faixas']):
+  for param_populacao in env.sim_params.population_segments:
+    for i, grupo_idade in enumerate(param_populacao.age_groups):
         grupo_idade_modificado = copy(grupo_idade)
         severidades = np.array(grupo_idade_modificado.severidades)
         desvio_faixa = env.inclinacao_severidade * (i - 4)
         novos_odds = np.exp(np.log(severidades / (1.0 - severidades)) - env.desvio_severidade + desvio_faixa)
         grupo_idade_modificado.severidades = novos_odds / (1.0 + novos_odds)
-        param_populacao['risco_faixas'][i] = grupo_idade_modificado
-    populacoes[nome_populacao] = get_populacao(env, param_populacao)
+        param_populacao.age_groups[i] = grupo_idade_modificado
+    populacoes[param_populacao.name] = get_populacao(env, param_populacao)
   return populacoes
 
 
@@ -181,5 +182,5 @@ def run_simulations(
 
 def combina_stats(all_stats: List[np.ndarray], sim_params: Parameters):
   mstats = np.stack(all_stats)
-  population_names = list(sim_params.population_segments.keys())
+  population_names = tuple(p.name for p in sim_params.population_segments)
   return Stats(mstats, cs.MEASUREMENTS, METRICS, population_names, cs.age_str, start_date=sim_params.start_date)

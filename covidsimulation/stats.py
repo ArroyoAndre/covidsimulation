@@ -22,7 +22,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterable
 import numpy as np
 import pickle
 
@@ -37,7 +37,7 @@ class Stats:
     stats: np.ndarray
     measurements: List[str]
     metrics: Dict[str, Tuple[str, str]]
-    population_names: List[str]
+    population_names: Iterable[str]
     age_str: List[str]
     start_date: str
 

@@ -1,6 +1,8 @@
 
 from typing import Dict, List, Iterable, Tuple
 from .simulation import SimulationConstants
+from .population import Population
+
 
 DEFAULT_D0_INFECTIONS = 2500
 DEFAULT_HOME_AGE_COFACTOR = 0.4
@@ -14,7 +16,7 @@ DEFAULT_CAPACITY_HOSPITAL_MAX = 80000  # The default might make no sense dependi
 
 
 class Parameters:
-    population_segments: Iterable[Dict]
+    population_segments: Iterable[Population]
     constants: SimulationConstants
     distancing: Iterable[Tuple[int, float]]
     d0_infections: int
@@ -55,4 +57,4 @@ class Parameters:
         self.capacity_hospital_beds = capacity_hospital_beds
         self.capacity_hospital_max = capacity_hospital_max
 
-        self.total_inhabitants = sum([p['habitantes'] for p in population_segments.values()])
+        self.total_inhabitants = sum([p.inhabitants for p in population_segments])
