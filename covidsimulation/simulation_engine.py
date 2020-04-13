@@ -5,6 +5,7 @@ from multiprocessing import Pool, cpu_count
 
 import numpy as np
 import simpy
+from tqdm.notebook import tqdm
 
 from . import simulation as cs
 from .lab import laboratorio
@@ -33,8 +34,9 @@ def monitorar_populacao(env):
         if int(env.now +0.01) - env.d0 >= env.duracao:
             return
         cs.log_estatisticas(env)
-        if (env.sim_number % 16) == 0:
-            print(int(env.now+0.01))
+        env.tqdm.update(1)
+#        if (env.sim_number % 16) == 0:  # Don't show progress
+#            print(int(env.now+0.01))
 
 
 def get_tamanho_casa(tamanho_casas):  # Número de pessoas morando na mesma casa
@@ -99,6 +101,7 @@ def cria_populacoes(env):
         desvio_faixa = env.inclinacao_severidade * (i - 4)
         novos_odds = np.exp(np.log(severidades / (1.0 - severidades)) - env.desvio_severidade + desvio_faixa)
         grupo_idade_modificado.severidades = novos_odds / (1.0 + novos_odds)
+        grupo_idade_modificado.adesao_isolamento += param_populacao.isolation_propensity_increase
         param_populacao.age_groups[i] = grupo_idade_modificado
     populacoes[param_populacao.name] = get_populacao(env, param_populacao)
   return populacoes
@@ -119,8 +122,11 @@ def simulate(
   env = simpy.Environment()
   env.sim_params = sim_params
   env.duracao = duration
-  scaling = simulation_size / sim_params.total_inhabitants
   env.sim_number = sim_number
+  print('', end='', flush=True)
+  env.tqdm = tqdm(total=env.duracao, position=env.sim_number+1)
+  env.tqdm.update(0)
+  scaling = simulation_size / sim_params.total_inhabitants
   env.d0 = None  # Esperando o dia para iniciar logs
   env.simula_capacidade = simulate_capacity
   env.desvio_severidade = (np.random.random() + np.random.random() - 1.0) * 0.2 if add_noise else 0.0
@@ -145,6 +151,7 @@ def simulate(
     env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
   env.run(until=duration)
   env.run(until=duration+env.d0+0.011)
+  env.tqdm.close()
   return env.stats / env.scaling
 
 
@@ -170,7 +177,8 @@ def run_simulations(
     )
     try:
         pool = Pool(min(cpu_count(), number_of_simulations))
-        all_stats = pool.map(simulate_with_params, [i for i in range(number_of_simulations)])
+        all_stats = pool.imap(simulate_with_params, tqdm((i for i in range(number_of_simulations)), total=number_of_simulations, position=0))
+        all_stats = list(all_stats)
     finally:
         pool.close()
         pool.join()
