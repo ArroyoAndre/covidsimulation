@@ -169,7 +169,7 @@ cdef class SimulationConstants:
     cdef public float contagion_duration_shape
     cdef public float contagion_duration_scale
 
-    def __init__(self):  # DEFAULT SIMULATION PARAMENTERS are set here
+    def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
         self.survival_probability_in_severe_overcapacity = 0.3
         self.survival_probability_without_hospital_bed = 0.9
@@ -181,32 +181,24 @@ cdef class SimulationConstants:
         self.contagion_duration_shape = 2.0
         self.contagion_duration_scale = 4.0
 
+    def __init__(self, *args, **kwargs):
+        if args:
+            raise ValueError('SimulationConstants does not accept positional arguments')
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def __repr__(self):
+        vals = ', '.join(['%s=%s' % (at, round(getattr(self, at), 2)) for at in dir(self) if not at.startswith('_') ])
+        return 'SimulationConstants(%s)' % vals
+
     def __hash__(self):
-        return hash((
-            self.home_contamination_daily_probability,
-            self.survival_probability_in_severe_overcapacity,
-            self.survival_probability_without_hospital_bed,
-            self.survival_probability_without_intensive_care_bed,
-            self.survival_probability_without_ventilator,
-            self.symptoms_delay_shape,
-            self.symptoms_delay_scale,
-            self.incubation_to_symptoms_variable_fraction,
-            self.contagion_duration_shape,
-            self.contagion_duration_scale,
-        ))
+        return hash(self.__repr__())
 
     def __copy__(self):
         other = SimulationConstants()
-        other.home_contamination_daily_probability = self.home_contamination_daily_probability
-        other.survival_probability_in_severe_overcapacity = self.survival_probability_in_severe_overcapacity
-        other.survival_probability_without_hospital_bed = self.survival_probability_without_hospital_bed
-        other.survival_probability_without_intensive_care_bed = self.survival_probability_without_intensive_care_bed
-        other.survival_probability_without_ventilator = self.survival_probability_without_ventilator
-        other.symptoms_delay_shape = self.symptoms_delay_shape
-        other.symptoms_delay_scale = self.symptoms_delay_scale
-        other.incubation_to_symptoms_variable_fraction = self.incubation_to_symptoms_variable_fraction
-        other.contagion_duration_shape = self.contagion_duration_shape
-        other.contagion_duration_scale = self.contagion_duration_scale
+        for at in dir(self):
+            if not at.startswith('_'):
+                setattr(other, at, getattr(self, at))
         return other
 
 ####
