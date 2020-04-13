@@ -85,7 +85,7 @@ def apply_isolation(env, start_date, isolation_factor):
     env.isolation_factor = cs.logit_transform_value(
         isolation_factor, logit_deviation)
     for person in env.people:
-        person = person.home.isolation_propensity < env.isolation_factor
+        person.in_isolation = person.home.isolation_propensity < env.isolation_factor
 
 
 def create_populations(env):
