@@ -1,5 +1,5 @@
 from typing import List, Dict, Tuple, Optional
-from copy import copy
+from copy import copy, deepcopy
 from functools import partial
 from multiprocessing import Pool, cpu_count
 
@@ -7,11 +7,15 @@ import numpy as np
 import simpy
 
 from . import simulation as cs
+from .cache import get_from_cache, save_to_cache
 from .lab import laboratorio
 from .parameters import Parameters
 from .population import Population
 from .stats import Stats
 from .metrics import METRICS
+
+
+SIMULATION_ENGINE_VERSION = '0.0.1'
 
 
 def get_matriz_estatisticas(env, duracao):
@@ -114,17 +118,21 @@ def simulate(
         duration, 
         simulate_capacity, 
         add_noise,
-        tqdm=None
+        use_cache,
+        tqdm=None,
     ):
-  for _ in range(sim_number):
-    np.random.random()
+  if use_cache:
+    args = (sim_number, sim_params, simulation_size, duration, simulate_capacity, add_noise, SIMULATION_ENGINE_VERSION)
+    results = get_from_cache(args)
+    if results:
+      return results[1]
   cs.seed(sim_number)
   np.random.seed(sim_number)
   env = simpy.Environment()
-  env.sim_params = sim_params
+  env.sim_params = deepcopy(sim_params)
   env.duracao = duration
   env.sim_number = sim_number
-  print('', end='', flush=True)
+  print('', end='', flush=True)  # Trick for tqdm in Jupyter notebooks
   if tqdm:
     env.tqdm = tqdm(total=env.duracao, position=env.sim_number+1)
     env.tqdm.update(0)
@@ -157,7 +165,10 @@ def simulate(
   env.run(until=duration+env.d0+0.011)
   if env.tqdm:
     env.tqdm.close()
-  return env.stats / env.scaling
+  stats = env.stats / env.scaling
+  if use_cache:
+    save_to_cache(args, stats)
+  return stats
 
 
 def run_simulations(
@@ -169,10 +180,11 @@ def run_simulations(
         simulation_size: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
         fpath=None,
         add_noise=True,  # Simulate uncertainty about main parameters and constants
+        use_cache=True,
         tqdm=None,  # Optional tqdm function to display progress
     ):
     if not distancing_list is None:
-        sim_params = copy(sim_params)
+        sim_params = deepcopy(sim_params)
         sim_params.distancing = distancing_list
     simulate_with_params = partial(simulate,
         sim_params=sim_params, 
@@ -180,6 +192,7 @@ def run_simulations(
         duration=duration, 
         simulate_capacity=simulate_capacity, 
         add_noise=add_noise,
+        use_cache=use_cache,
         tqdm=tqdm if number_of_simulations <= cpu_count() else None,
     )
     try:
