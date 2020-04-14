@@ -191,15 +191,19 @@ cdef class SimulationConstants:
         vals = ', '.join(['%s=%s' % (at, round(getattr(self, at), 2)) for at in dir(self) if not at.startswith('_') ])
         return 'SimulationConstants(%s)' % vals
 
+    def __reduce__(self):
+        return (SimulationConstants, tuple(), self.__getstate__())
+
+    def __getstate__(self):
+        return {at: round(getattr(self, at), 2) for at in dir(self) if not at.startswith('_')}
+
+    def __setstate__(self, state):
+        for at, value in state.items():
+            setattr(self, at, value)
+
     def __hash__(self):
         return hash(self.__repr__())
 
-    def __copy__(self):
-        other = SimulationConstants()
-        for at in dir(self):
-            if not at.startswith('_'):
-                setattr(other, at, getattr(self, at))
-        return other
 
 ####
 ## Home - a place with geometric coordinates where people live

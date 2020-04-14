@@ -24,6 +24,7 @@
 
 from typing import List, Tuple, Dict, Iterable
 import numpy as np
+from pathlib import Path
 import pickle
 
 from smart_open import open  # Allows for saving into S3 and other cool stuff
@@ -100,6 +101,7 @@ class Stats:
     def save(self, fname):
         if not fname.endswith('.pkl'):
             fname = fname + '.pkl'
+        Path(fname).parent.mkdir(parents=True, exist_ok=True)
         with open(fname, 'wb') as f:
             pickle.dump(self, f)
 

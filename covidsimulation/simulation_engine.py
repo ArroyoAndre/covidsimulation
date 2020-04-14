@@ -5,7 +5,6 @@ from multiprocessing import Pool, cpu_count
 
 import numpy as np
 import simpy
-from tqdm.notebook import tqdm
 
 from . import simulation as cs
 from .lab import laboratorio
@@ -34,7 +33,8 @@ def monitorar_populacao(env):
         if int(env.now +0.01) - env.d0 >= env.duracao:
             return
         cs.log_estatisticas(env)
-        env.tqdm.update(1)
+        if env.tqdm:
+          env.tqdm.update(1)
 #        if (env.sim_number % 16) == 0:  # Don't show progress
 #            print(int(env.now+0.01))
 
@@ -113,7 +113,8 @@ def simulate(
         simulation_size,
         duration, 
         simulate_capacity, 
-        add_noise, 
+        add_noise,
+        tqdm=None
     ):
   for _ in range(sim_number):
     np.random.random()
@@ -124,8 +125,11 @@ def simulate(
   env.duracao = duration
   env.sim_number = sim_number
   print('', end='', flush=True)
-  env.tqdm = tqdm(total=env.duracao, position=env.sim_number+1)
-  env.tqdm.update(0)
+  if tqdm:
+    env.tqdm = tqdm(total=env.duracao, position=env.sim_number+1)
+    env.tqdm.update(0)
+  else:
+    env.tqdm  = None
   scaling = simulation_size / sim_params.total_inhabitants
   env.d0 = None  # Esperando o dia para iniciar logs
   env.simula_capacidade = simulate_capacity
@@ -151,7 +155,8 @@ def simulate(
     env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
   env.run(until=duration)
   env.run(until=duration+env.d0+0.011)
-  env.tqdm.close()
+  if env.tqdm:
+    env.tqdm.close()
   return env.stats / env.scaling
 
 
@@ -164,6 +169,7 @@ def run_simulations(
         simulation_size: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended 
         fpath=None,
         add_noise=True,  # Simulate uncertainty about main parameters and constants
+        tqdm=None,  # Optional tqdm function to display progress
     ):
     if not distancing_list is None:
         sim_params = copy(sim_params)
@@ -173,11 +179,14 @@ def run_simulations(
         simulation_size=simulation_size,
         duration=duration, 
         simulate_capacity=simulate_capacity, 
-        add_noise=add_noise, 
+        add_noise=add_noise,
+        tqdm=tqdm if number_of_simulations <= cpu_count() else None,
     )
     try:
         pool = Pool(min(cpu_count(), number_of_simulations))
-        all_stats = pool.imap(simulate_with_params, tqdm((i for i in range(number_of_simulations)), total=number_of_simulations, position=0))
+        all_stats = pool.imap(simulate_with_params, range(number_of_simulations))
+        if tqdm:
+          all_stats = tqdm(all_stats, total=number_of_simulations, position=0)
         all_stats = list(all_stats)
     finally:
         pool.close()
