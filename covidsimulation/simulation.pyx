@@ -661,6 +661,11 @@ cdef int get_rt(Person pessoa):
 cdef int get_succeptible(Person pessoa):
     return pessoa.succeptible
 
+cdef int get_confirmed_inpatients(Person pessoa):
+    return pessoa.internado and pessoa.diagnosticado
+
+cdef int get_confirmed_in_icu(Person pessoa):
+    return pessoa.em_uti and pessoa.diagnosticado
 
 cdef list fmetricas = [
     get_pessoa,
@@ -677,6 +682,8 @@ cdef list fmetricas = [
     get_rt,
     get_succeptible,
     get_em_leito,
+    get_confirmed_in_icu,
+    get_confirmed_inpatients,
 ]
 
 
@@ -695,6 +702,8 @@ MEASUREMENTS = [
     'transmited',
     'succeptible',
     'in_hospital_bed',
+    'confirmed_in_intensive_care',
+    'confirmed_inpatients',
 ]
 
 
