@@ -1,4 +1,5 @@
 # distutils: language = c++
+#cython: language_level=3
 
 # Copyright 2020 André Arroyo and contributors
 # 

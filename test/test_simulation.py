@@ -1,9 +1,18 @@
 import pytest
 import numpy as np
-from covidsimulation import run_simulations
-from covidsimulation.regions import br_saopaulo
+from covidsimulation.regions.br_saopaulo import params as br_saopaulo_params
+from covidsimulation import run_simulations, plot, Stats
+from tqdm import tqdm
 
 
 def test_run_simulations():
-    run_simulations(br_saopaulo.params, isolamentos=[], n=1, duracao=10, 
-                    tamanho_simulacao=50000)
+    stats = run_simulations(
+        sim_params=br_saopaulo_params, 
+        distancing_list=[], 
+        simulate_capacity=False, 
+        duration=10, 
+        number_of_simulations=1, 
+        simulation_size=5000, 
+        fpath='saved/teste.pkl',
+        tqdm=tqdm,
+        )
