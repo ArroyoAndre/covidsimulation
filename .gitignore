@@ -6,6 +6,7 @@ __pycache__
 .so
 .o
 build/
+saved/
 .idea
 .vscode
 .pyc

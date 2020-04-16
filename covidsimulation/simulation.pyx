@@ -169,6 +169,9 @@ cdef class SimulationConstants:
     cdef public float incubation_to_symptoms_variable_fraction
     cdef public float contagion_duration_shape
     cdef public float contagion_duration_scale
+    cdef public float time_to_outcome_severe_scale
+    cdef public float time_to_outcome_severe_shape
+    cdef public float time_to_hospitalization_severe_proportion
 
     def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
@@ -181,6 +184,10 @@ cdef class SimulationConstants:
         self.incubation_to_symptoms_variable_fraction = 0.3
         self.contagion_duration_shape = 2.0
         self.contagion_duration_scale = 4.0
+        self.time_to_outcome_severe_scale = 12.0
+        self.time_to_outcome_severe_shape = 2.0
+        self.time_to_hospitalization_severe_proportion = 0.5
+
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -375,7 +382,7 @@ cdef class Person:
         self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
 
     cdef configurar_evolucao_uti(self):
-        tempo_desfecho = np.random.weibull(2) * 34  # 30 dias  
+        tempo_desfecho = np.random.weibull(2) * 34  # 30 dias
         tempo_ate_internacao = tempo_desfecho * 0.2  # 6 dias
         self.env.process(self.rodar_internacao(tempo_ate_internacao))
         tempo_ate_uti = tempo_desfecho * 0.266  # 8 dias
@@ -385,8 +392,9 @@ cdef class Person:
         self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
 
     cdef configurar_evolucao_internacao(self):
-        tempo_desfecho = np.random.weibull(2) * 33  # 29 dias  
-        tempo_ate_internacao = tempo_desfecho * 0.25  # 7 dias
+        tempo_desfecho = np.random.weibull(
+            self.sim_consts.time_to_outcome_severe_shape) * self.sim_consts.time_to_outcome_severe_scale
+        tempo_ate_internacao = tempo_desfecho * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
         self.env.process(self.rodar_internacao(tempo_ate_internacao))
         self.env.process(self.rodar_sair_do_hospital(tempo_desfecho))
 
