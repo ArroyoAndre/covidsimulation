@@ -1,6 +1,8 @@
 # covidsimulation
 Covid Epidemics Simulation - Individual-based dynamic model in python and cython with Simpy
 
+_"All models are wrong, but some are useful." __George Box___
+
 # Instructions
 1. Clone this repo
 1. Run `setup.sh`  (It might require making it executable: `chmod 777 setup.sh`)
