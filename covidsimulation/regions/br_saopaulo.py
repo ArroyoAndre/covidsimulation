@@ -6,7 +6,6 @@ from ..parameters import Parameters
 from ..population import Population
 from ..simulation import SimulationConstants
 
-
 age_structure = {
     '0-9': 0.13,
     '10-19': 0.152,
@@ -19,9 +18,7 @@ age_structure = {
     '80+': 0.018,
 }
 
-
 total_inhabitants = 20000000
-
 
 PROPENSAO_ISOLAMENTO_FAIXA = [
     -1.2,  # 0
@@ -35,10 +32,8 @@ PROPENSAO_ISOLAMENTO_FAIXA = [
     1.5,  # 8
 ]
 
-
 PROPENSAO_ISOLAMENTO_PUBLICO_CD = 0.0
 PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
-
 
 PROPENSAO_ISOLAMENTO_PRIVADO = [
     0.8,  # 0
@@ -52,57 +47,54 @@ PROPENSAO_ISOLAMENTO_PRIVADO = [
     2.7,  # 8
 ]
 
-
 PUBLICO_E = Population(
     name='classe_e',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.7,
-               diagnosis_delay=18.0)
-            for i, nome_faixa in enumerate(age_structure.keys())
+                 diagnosis_delay=18.0)
+        for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([
-        0.3,   # 1p
+        0.3,  # 1p
         0.25,  # 2p
         0.25,  # 3p
-        0.2,   # 4p
+        0.2,  # 4p
     ]),
     inhabitants=total_inhabitants * 1 / 12.0,
     geosocial_displacement=1.2,  # deslocamento geográfico
     seed_infections=1,
 )
 
-
 PUBLICO_CD = Population(
     name='classe_c-d',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.9,
-               diagnosis_delay=18.0)
-            for i, nome_faixa in enumerate(age_structure.keys())
+                 diagnosis_delay=18.0)
+        for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([
-        0.3,   # 1p
+        0.3,  # 1p
         0.25,  # 2p
         0.25,  # 3p
-        0.2,   # 4p
+        0.2,  # 4p
     ]),
     inhabitants=total_inhabitants * 6 / 12.0,
     geosocial_displacement=0.6,  # deslocamento geográfico
     seed_infections=6,
 )
 
-
 PRIVADO = Population(
     name='classe_abc+',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_PRIVADO[i], 0.95, diagnosis_delay=4.0)
-            for i, nome_faixa in enumerate(age_structure.keys())
+        for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([
-        0.3,   # 1p
-        0.3,   # 2p
+        0.3,  # 1p
+        0.3,  # 2p
         0.25,  # 3p
         0.15,  # 4p
     ]),
@@ -113,15 +105,13 @@ PRIVADO = Population(
 
 population_segments = [PRIVADO, PUBLICO_CD, PUBLICO_E]
 
-
 distancing = [
-    (0, 0.2), # 2020-03-13
-    (3, 0.45), # 2020-03-16
-    (9, 0.68), # 2020-03-22
-    (16, 0.66), # 2020-03-29
-    (23, 0.62), # 2020-04-05
+    (0, 0.2),  # 2020-03-13
+    (3, 0.45),  # 2020-03-16
+    (9, 0.68),  # 2020-03-22
+    (16, 0.66),  # 2020-03-29
+    (23, 0.62),  # 2020-04-05
 ]
-
 
 params = Parameters(
     population_segments,
@@ -137,7 +127,6 @@ params = Parameters(
     min_age_group_initially_infected=4,
 )
 
-
 sp_official_deaths = [
     (0, 0.0),  # 2020-03-13
     (4, 4.0),  # 2020-03-17
@@ -150,9 +139,9 @@ sp_official_deaths = [
     (26, 392.0),  # 2020-04-08
     (27, 445.0),  # 2020-04-09
     (28, 481.0),  # 2020-04-10
-#    (29, 498.0),  # 2020-04-11
+    #    (29, 498.0),  # 2020-04-11
     (30, 524.0),  # 2020-04-12
- #   (31, 539.0),  # 2020-04-13
-    (32, 616.0 ),  # 2020-04-14  * Estimativa
+    #   (31, 539.0),  # 2020-04-13
+    (32, 616.0),  # 2020-04-14  * Estimativa
     (33, 673.0),  # 2020-04-15
 ]

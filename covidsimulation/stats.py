@@ -29,7 +29,6 @@ import pickle
 
 from smart_open import open  # Allows for saving into S3 and other cool stuff
 
-
 CONFIDENCE_RANGE = (20, 80)
 DEFAULT_START_DATE = '2020-03-01'
 
@@ -44,13 +43,13 @@ class Stats:
 
     def __init__(
             self,
-            stats: np.ndarray, 
-            measurements: List[str], 
+            stats: np.ndarray,
+            measurements: List[str],
             metrics: Dict[str, Tuple[str, str]],
             population_names: List[str],
             age_str: List[str],
-            start_date: str=DEFAULT_START_DATE,
-        ):
+            start_date: str = DEFAULT_START_DATE,
+    ):
         self.stats = stats
         self.measurements = measurements
         self.metrics = metrics
@@ -72,14 +71,14 @@ class Stats:
         return stats_faixa
 
     def get_metric(
-            self, 
-            nome_metrica, 
-            nome_populacao=None, 
-            nome_faixa=None, 
-            fatores=None, 
+            self,
+            nome_metrica,
+            nome_populacao=None,
+            nome_faixa=None,
+            fatores=None,
             diaria=False,
             confidence_range=CONFIDENCE_RANGE,
-        ):
+    ):
         numerator_name, denominator_name = self.metrics[nome_metrica]
         indice_metrica = get_index(numerator_name, self.measurements)
         estatistica = self._get_estatistica(indice_metrica, nome_populacao, nome_faixa)
@@ -90,11 +89,11 @@ class Stats:
         elif not fatores is None:
             estatistica *= fatores
         if diaria:
-            estatistica = estatistica[:, 1:] - estatistica[:, :-1] 
+            estatistica = estatistica[:, 1:] - estatistica[:, :-1]
         return (
             self,
-            estatistica.mean(0), 
-            np.percentile(estatistica, confidence_range[0], axis=0), 
+            estatistica.mean(0),
+            np.percentile(estatistica, confidence_range[0], axis=0),
             np.percentile(estatistica, confidence_range[1], axis=0),
         )
 
@@ -111,7 +110,6 @@ class Stats:
             fname = fname + '.pkl'
         with open(fname, 'rb') as f:
             return pickle.load(f)
-
 
 
 def get_index(key, keys):

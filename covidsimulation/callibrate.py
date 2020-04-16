@@ -8,23 +8,24 @@ from copy import deepcopy
 from itertools import product
 from collections import defaultdict
 
-
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
-                          # of errors between small quantities, in which random noise might represent
-                          # a large portion of observed deviations
+
+
+# of errors between small quantities, in which random noise might represent
+# a large portion of observed deviations
 
 
 def callibrate_parameters(
         parameters_to_try: List[Tuple[Callable, Iterable]],
         score_function: Callable,
-        sim_params: Parameters, 
-        simulate_capacity=False, 
-        duration: int=80, 
-        simulation_size: int=100000,
-        n: int=10,
+        sim_params: Parameters,
+        simulate_capacity=False,
+        duration: int = 80,
+        simulation_size: int = 100000,
+        n: int = 10,
         use_cache=True,
         tqdm=None,
-    ):
+):
     """
     parameters_to_try: List of tuples (setting_fn, [values]). The function setting_fn must take 2
         parameters (sim_params: Parameters, value) and must modify sim_params.
@@ -33,13 +34,13 @@ def callibrate_parameters(
     """
     sim_params_list, combinations = get_simulation_parameters(sim_params, parameters_to_try, n)
 
-    simulate_with_params = partial(simulate_wrapped, 
-            simulation_size=simulation_size,
-            duration=duration, 
-            simulate_capacity=simulate_capacity,
-            use_cache=use_cache,
-            add_noise=False,
-        )
+    simulate_with_params = partial(simulate_wrapped,
+                                   simulation_size=simulation_size,
+                                   duration=duration,
+                                   simulate_capacity=simulate_capacity,
+                                   use_cache=use_cache,
+                                   add_noise=False,
+                                   )
     try:
         pool = Pool(min(cpu_count(), len(sim_params_list)))
         all_stats = pool.imap(simulate_with_params, sim_params_list)
@@ -86,5 +87,5 @@ def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[int, float]]
     lse = 0.0
     for day, reporded_deaths in expected_deaths:
         le = np.log((metric[day] + LSE_REGULARIZATOR) / (reporded_deaths + LSE_REGULARIZATOR))
-        lse += le**2
+        lse += le ** 2
     return lse

@@ -5,7 +5,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-
 PLOT_COLORS = [
     ('rgba(0,0,255,1)', 'rgba(0,0,255,0.25)'),
     ('rgba(255,0,0,1)', 'rgba(255,0,0,0.25)'),
@@ -30,11 +29,11 @@ def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start):
     df['x'] = pd.date_range(stats.start_date, periods=len(days)).to_pydatetime()
     if start:
         df['x'] += datetime.timedelta(days=start)
-    x=df['x']
-    x_rev =x[::-1]
+    x = df['x']
+    x_rev = x[::-1]
     x_plot = pd.concat([x, x_rev], ignore_index=True)
-    y1 =df['mean']
-    y1_upper =df['max']
+    y1 = df['mean']
+    y1_upper = df['max']
     y1_lower = df['min']
     y1_lower = y1_lower[::-1]
     y1_plot = pd.concat([y1_upper, y1_lower], ignore_index=True)

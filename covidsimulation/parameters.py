@@ -1,9 +1,7 @@
-
 from typing import Dict, List, Iterable, Tuple, Optional
 from .simulation import SimulationConstants
 from .population import Population
 from dataclasses import dataclass
-
 
 DEFAULT_D0_INFECTIONS = 2500
 DEFAULT_HOME_AGE_COFACTOR = 0.4

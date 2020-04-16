@@ -5,7 +5,6 @@ import pickle
 
 from .parameters import Parameters
 
-
 CACHE_BASE_PATH = Path('saved').joinpath('cache')
 
 
