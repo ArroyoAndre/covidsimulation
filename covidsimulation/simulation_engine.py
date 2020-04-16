@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 from copy import copy, deepcopy
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Manager, Pool, Queue, cpu_count
 
 import numpy as np
 import simpy
@@ -11,17 +11,18 @@ from .cache import get_from_cache, save_to_cache
 from .lab import laboratorio
 from .parameters import Parameters
 from .population import Population
+from .progress import ProgressBar
 from .stats import Stats
 from .metrics import METRICS
 
 SIMULATION_ENGINE_VERSION = '0.0.1'
 
 
-def get_matriz_estatisticas(env, duracao):
+def get_matriz_estatisticas(env, duration):
     num_populacoes = len(env.populacoes)
     num_metricas = len(cs.MEASUREMENTS)
     num_faixas = len(cs.age_str)
-    stats = np.zeros([num_populacoes, num_metricas, num_faixas, duracao])
+    stats = np.zeros([num_populacoes, num_metricas, num_faixas, duration])
     return stats
 
 
@@ -33,11 +34,11 @@ def monitorar_populacao(env):
                 env.d0 = int(env.now + 0.01)
             else:
                 continue
-        if int(env.now + 0.01) - env.d0 >= env.duracao:
+        if int(env.now + 0.01) - env.d0 >= env.duration:
             return
         cs.log_estatisticas(env)
-        if env.tqdm:
-            env.tqdm.update(1)
+        if env.simulation_queue:
+            env.simulation_queue.put(1)
 
 
 #        if (env.sim_number % 16) == 0:  # Don't show progress
@@ -69,6 +70,8 @@ def get_populacao(env, param_populacao: Population):
         pessoas.extend(generate_pessoas_em_nova_casa(env, param_populacao))
     for _ in range(infectados_iniciais):
         setar_infeccao_inicial(env, pessoas)
+    if env.creation_queue:
+        env.creation_queue.put(n)
     return pessoas
 
 
@@ -120,26 +123,27 @@ def simulate(
         simulate_capacity,
         add_noise,
         use_cache,
-        tqdm=None,
+        creation_queue: Optional[Queue] = None,
+        simulation_queue: Optional[Queue] = None,
 ):
     if use_cache:
         args = (
-        sim_number, sim_params, simulation_size, duration, simulate_capacity, add_noise, SIMULATION_ENGINE_VERSION)
+            sim_number, sim_params, simulation_size, duration, simulate_capacity, add_noise, SIMULATION_ENGINE_VERSION)
         results = get_from_cache(args)
         if results:
+            if creation_queue:
+                creation_queue.put(simulation_size)
+            if simulation_queue:
+                simulation_queue.put(duration)
             return results[1]
     cs.seed(sim_number)
     np.random.seed(sim_number)
     env = simpy.Environment()
+    env.creation_queue = creation_queue
+    env.simulation_queue = simulation_queue
     env.sim_params = deepcopy(sim_params)
-    env.duracao = duration
+    env.duration = duration
     env.sim_number = sim_number
-    print('', end='', flush=True)  # Trick for tqdm in Jupyter notebooks
-    if tqdm:
-        env.tqdm = tqdm(total=env.duracao, position=env.sim_number + 1)
-        env.tqdm.update(0)
-    else:
-        env.tqdm = None
     scaling = simulation_size / sim_params.total_inhabitants
     env.d0 = None  # Esperando o dia para iniciar logs
     env.simula_capacidade = simulate_capacity
@@ -166,10 +170,9 @@ def simulate(
     env.process(monitorar_populacao(env))
     for dia_inicio, fator_isolamento in sim_params.distancing:
         env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
-    env.run(until=duration)
+    while not env.d0:
+        env.run(until=env.now + 1)
     env.run(until=duration + env.d0 + 0.011)
-    if env.tqdm:
-        env.tqdm.close()
     stats = env.stats / env.scaling
     if use_cache:
         save_to_cache(args, stats)
@@ -191,6 +194,12 @@ def run_simulations(
     if not distancing_list is None:
         sim_params = deepcopy(sim_params)
         sim_params.distancing = distancing_list
+
+    if tqdm:
+        manager = Manager()
+        creation_queue = manager.Queue()
+        simulation_queue = manager.Queue()
+
     simulate_with_params = partial(simulate,
                                    sim_params=sim_params,
                                    simulation_size=simulation_size,
@@ -198,17 +207,26 @@ def run_simulations(
                                    simulate_capacity=simulate_capacity,
                                    add_noise=add_noise,
                                    use_cache=use_cache,
-                                   tqdm=tqdm if number_of_simulations <= cpu_count() else None,
+                                   creation_queue=creation_queue if tqdm else None,
+                                   simulation_queue=simulation_queue if tqdm else None,
                                    )
     try:
         pool = Pool(min(cpu_count(), number_of_simulations))
         all_stats = pool.imap(simulate_with_params, range(number_of_simulations))
         if tqdm:
-            all_stats = tqdm(all_stats, total=number_of_simulations, position=0)
+            creation_bar, simulation_bar = show_progress(tqdm, creation_queue, simulation_queue, simulation_size,
+                                                         number_of_simulations, duration)
+            creation_bar.start()
+            simulation_bar.start()
         all_stats = list(all_stats)
     finally:
         pool.close()
         pool.join()
+        if tqdm:
+            creation_bar.stop()
+            creation_bar.join()
+            simulation_bar.stop()
+            simulation_bar.join()
     stats = combina_stats(all_stats, sim_params)
     if fpath:
         stats.save(fpath)
@@ -219,3 +237,10 @@ def combina_stats(all_stats: List[np.ndarray], sim_params: Parameters):
     mstats = np.stack(all_stats)
     population_names = tuple(p.name for p in sim_params.population_segments)
     return Stats(mstats, cs.MEASUREMENTS, METRICS, population_names, cs.age_str, start_date=sim_params.start_date)
+
+
+def show_progress(tqdm, creation_queue: Queue, simulation_queue: Queue, simulation_size: int,
+                  number_of_simulations: int, duration: int):
+    creation_bar = ProgressBar(tqdm, creation_queue, simulation_size * number_of_simulations, 0, 'Population')
+    simulation_bar = ProgressBar(tqdm, simulation_queue, duration * number_of_simulations, 1, 'Simulation')
+    return creation_bar, simulation_bar
