@@ -9,9 +9,9 @@ class ProgressBar(threading.Thread):
                  position: int, desc: str):
         super(ProgressBar, self).__init__()
         self._should_stop = threading.Event()
-        print('', end='', flush=True)
+#        print('', end='', flush=True)
         self.tqdm = tqdm_fn(total=total, position=position, desc=desc)
-        print('', end='', flush=True)
+#        print('', end='', flush=True)
         self.tqdm.update(0)
         self.queue = queue
 

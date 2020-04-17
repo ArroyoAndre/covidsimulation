@@ -172,6 +172,7 @@ cdef class SimulationConstants:
     cdef public float time_to_outcome_severe_scale
     cdef public float time_to_outcome_severe_shape
     cdef public float time_to_hospitalization_severe_proportion
+    cdef public float immunization_period
 
     def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
@@ -187,7 +188,7 @@ cdef class SimulationConstants:
         self.time_to_outcome_severe_scale = 12.0
         self.time_to_outcome_severe_shape = 2.0
         self.time_to_hospitalization_severe_proportion = 0.5
-
+        self.immunization_period = 0.0  # Mean immunization duration. Permanent if 0.0
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -544,6 +545,7 @@ cdef class Person:
         if self.dead:
             return
         self.active = False
+        self.setup_remove_immunization()
         if self.hospital_bed_req:
             self.hospital_bed_req.__exit__(None, None, None)
             self.hospital_bed_req = None
@@ -559,7 +561,8 @@ cdef class Person:
         yield self.env.timeout(time_until_discharge_from_hospital)
         if self.dead:
             return
-        self.active = False 
+        self.active = False
+        self.setup_remove_immunization()
     
     def run_death(self, time_until_death):
         yield self.env.timeout(time_until_death)
@@ -619,6 +622,17 @@ cdef class Person:
             yield self.env.timeout(
                 np.random.exponential(self.env.serial_interval)
             )
+
+    def setup_remove_immunization(self):
+        if self.sim_consts.immunization_period:
+            self.env.process(self.run_remove_immunization())
+
+    def run_remove_immunization(self):
+        immunization_timeout = np.random.exponential(self.sim_consts.immunization_period)
+        yield self.env.timeout(immunization_timeout)
+        if not self.morto:
+            self.succeptible = True
+        
 
 ########
 ##  Logs
