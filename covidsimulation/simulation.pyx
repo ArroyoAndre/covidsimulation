@@ -416,7 +416,7 @@ cdef class Person:
     def wait_for_diagnosis(self, float diagnosis_delay):
         cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
         yield self.env.timeout(diagnosis_delay)
-        self.diagnosticado = True
+        self.diagnosed = True
 
     def run_hospitalization(self, time_until_hospitalization):
         yield self.env.timeout(time_until_hospitalization)
