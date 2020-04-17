@@ -1,14 +1,25 @@
+
+from typing import List, Dict, Tuple, Optional
+from copy import copy, deepcopy
+from functools import partial
+from multiprocessing import Manager, Pool, Queue, cpu_count
+
+
 import numpy as np
 import simpy
 from copy import copy
 from typing import List, Dict, Tuple
 from multiprocessing import Pool, cpu_count
 from . import simulation as cs
-from .lab import laboratory
+from .cache import get_from_cache, save_to_cache
+from .lab import laboratorio
 from .parameters import Parameters
+from .population import Population
+from .progress import ProgressBar
 from .stats import Stats
 from .metrics import METRICS
 
+SIMULATION_ENGINE_VERSION = '0.0.1'
 
 def get_stats_matrix(env, duration):
     num_populations = len(env.populations)
@@ -29,8 +40,8 @@ def track_population(env):
         if int(env.now + 0.01) - env.d0 >= env.duration:
             return
         cs.log_stats(env)
-        if (env.sim_number % 16) == 0:
-            print(int(env.now+0.01))
+        if env.simulation_queue:
+            env.simulation_queue.put(1)
 
 
 def get_house_size(house_sizes):  # Number of people living in the same house
@@ -39,6 +50,7 @@ def get_house_size(house_sizes):  # Number of people living in the same house
 
 def get_age_group(age_probabilities, age_risk):
     return np.random.choice(age_risk, p=age_probabilities)
+
 
 
 def set_initial_infection(env, people):
@@ -90,7 +102,7 @@ def apply_isolation(env, start_date, isolation_factor):
 
 def create_populations(env):
     populations = {}
-    for population_name, population_params in env.sim_params.population_segments.items():
+    for population_params in env.sim_params.population_segments:
         for i, age_group in enumerate(population_params['age_risk']):
             age_group_cp = copy(age_group)
             severity = np.array(age_group_cp.severity)
@@ -102,15 +114,36 @@ def create_populations(env):
         populations[population_name] = get_population(env, population_params)
     return populations
 
-
-def simulate(params):
-    simulation_size, duration, isolations, simulate_capacity, sim_params, sim_number = params
-    for _ in range(sim_number):
-        np.random.random()
+def simulate(
+        sim_number,
+        sim_params,
+        simulation_size,
+        duration,
+        simulate_capacity,
+        add_noise,
+        use_cache,
+        creation_queue: Optional[Queue] = None,
+        simulation_queue: Optional[Queue] = None,
+):
+    if use_cache:
+        args = (
+            sim_number, sim_params, simulation_size, duration, simulate_capacity, add_noise, SIMULATION_ENGINE_VERSION)
+        results = get_from_cache(args)
+        if results:
+            if creation_queue:
+                creation_queue.put(simulation_size)
+            if simulation_queue:
+                simulation_queue.put(duration)
+            return results[1]
+ 
     cs.seed(sim_number)
+    np.random.seed(sim_number)
     env = simpy.Environment()
-    env.sim_params = sim_params
+    env.creation_queue = creation_queue
+    env.simulation_queue = simulation_queue
+    env.sim_params = deepcopy(sim_params)
     env.duration = duration
+    env.sim_number = sim_number
     scaling = simulation_size / sim_params.total_inhabitants
     env.sim_number = sim_number
     env.d0 = None
@@ -140,28 +173,63 @@ def simulate(params):
     env.process(track_population(env))
     for start_date, isolation_factor in isolations:
         env.process(apply_isolation(env, start_date, isolation_factor))
-    env.run(until=duration)
-    env.run(until=duration+env.d0+0.011)
-    return env.stats / env.scaling
+    while not env.d0:
+        env.run(until=env.now + 1)
+    env.run(until=duration + env.d0 + 0.011)
+    stats = env.stats / env.scaling
+    if use_cache:
+        save_to_cache(args, stats)
+    return stats
 
 
 def run_simulations(
         sim_params: Parameters,
-        isolations: List[Tuple[float, float]],
+        distancing_list: Optional[List[Tuple[float, float]]] = None,  # Set to override sim_param's default distancing
         simulate_capacity=False,
-        duration: int=80,
-        n: int=4,  # For final presentation purposes, a value greater than 10 is recommended
-        simulation_size: int=100000,  # For final presentation purposes, a value greater than 500000 is recommended
+        duration: int = 80,
+        number_of_simulations: int = 4,  # For final presentation purposes, a value greater than 10 is recommended
+        simulation_size: int = 100000,  # For final presentation purposes, a value greater than 500000 is recommended
         fpath=None,
+        add_noise=True,  # Simulate uncertainty about main parameters and constants
+        use_cache=True,
+        tqdm=None,  # Optional tqdm function to display progress
 ):
-    params = [simulation_size, duration,
-              isolations, simulate_capacity, sim_params]
+    if not distancing_list is None:
+        sim_params = deepcopy(sim_params)
+        sim_params.distancing = distancing_list
+
+    if tqdm:
+        manager = Manager()
+        creation_queue = manager.Queue()
+        simulation_queue = manager.Queue()
+
+    simulate_with_params = partial(simulate,
+                                   sim_params=sim_params,
+                                   simulation_size=simulation_size,
+                                   duration=duration,
+                                   simulate_capacity=simulate_capacity,
+                                   add_noise=add_noise,
+                                   use_cache=use_cache,
+                                   creation_queue=creation_queue if tqdm else None,
+                                   simulation_queue=simulation_queue if tqdm else None,
+                                   )
     try:
-        pool = Pool(min(cpu_count(), n))
-        all_stats = pool.map(simulate, [params + [i] for i in range(n)])
+        pool = Pool(min(cpu_count(), number_of_simulations))
+        all_stats = pool.imap(simulate_with_params, range(number_of_simulations))
+        if tqdm:
+            creation_bar, simulation_bar = show_progress(tqdm, creation_queue, simulation_queue, simulation_size,
+                                                         number_of_simulations, duration)
+            creation_bar.start()
+            simulation_bar.start()
+        all_stats = list(all_stats)
     finally:
         pool.close()
         pool.join()
+        if tqdm:
+            creation_bar.stop()
+            creation_bar.join()
+            simulation_bar.stop()
+            simulation_bar.join()
     stats = combine_stats(all_stats, sim_params)
     if fpath:
         stats.save(fpath)
@@ -170,5 +238,12 @@ def run_simulations(
 
 def combine_stats(all_stats: List[np.ndarray], sim_params: Parameters):
     mstats = np.stack(all_stats)
-    population_names = list(sim_params.population_segments.keys())
+    population_names = tuple(p.name for p in sim_params.population_segments)
     return Stats(mstats, cs.MEASUREMENTS, METRICS, population_names, cs.age_str, start_date=sim_params.start_date)
+
+
+def show_progress(tqdm, creation_queue: Queue, simulation_queue: Queue, simulation_size: int,
+                  number_of_simulations: int, duration: int):
+    creation_bar = ProgressBar(tqdm, creation_queue, simulation_size * number_of_simulations, 0, 'Population')
+    simulation_bar = ProgressBar(tqdm, simulation_queue, duration * number_of_simulations, 1, 'Simulation')
+    return creation_bar, simulation_bar

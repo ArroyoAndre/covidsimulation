@@ -1,27 +1,46 @@
 import pytest
 import numpy as np
-from covidsimulation import run_simulations
-from covidsimulation.regions import br_saopaulo
+from covidsimulation.regions.br_saopaulo import params as br_saopaulo_params
+from covidsimulation import run_simulations, plot, Stats
+from tqdm import tqdm
 
 
-@pytest.fixture
-def default_simulation_params():
-    return {
-        "sim_params": br_saopaulo.params,
-        "n": 1,
-        "duration": 20,
-        "simulation_size": 50000
-    }
+def test_run_simulations():
+    stats = run_simulations(
+        sim_params=br_saopaulo_params, 
+        distancing_list=[], 
+        simulate_capacity=False, 
+        duration=10, 
+        number_of_simulations=1, 
+        simulation_size=5000, 
+        fpath='saved/teste.pkl',
+        use_cache=False,
+        tqdm=tqdm,
+        )
+    average_infected = stats.get_metric('infected')[1].tolist()
+    assert average_infected[9] > average_infected[0] 
 
-def test_run_simulations(default_simulation_params):
-    run_simulations(isolations=[], **default_simulation_params)
-
-
-def test_isolation(default_simulation_params):
-    with_isolation = run_simulations(isolations=[[0, 0.9]], **default_simulation_params)
-    without_isolation = run_simulations(isolations=[], **default_simulation_params)
-
-    metrics = ["deaths", "infected"]
-    for metric in metrics:
-        assert with_isolation.get_metric(metric)[1][-1] < \
-               without_isolation.get_metric(metric)[1][-1]
+def test_run_simulations_cached():
+    stats = run_simulations(
+        sim_params=br_saopaulo_params, 
+        distancing_list=[], 
+        simulate_capacity=False, 
+        duration=5, 
+        number_of_simulations=1, 
+        simulation_size=5000, 
+        fpath='saved/teste.pkl',
+        use_cache=True,
+        tqdm=tqdm,
+        )
+    stats2 = run_simulations(
+        sim_params=br_saopaulo_params, 
+        distancing_list=[], 
+        simulate_capacity=False, 
+        duration=5, 
+        number_of_simulations=1, 
+        simulation_size=5000, 
+        fpath='saved/teste.pkl',
+        use_cache=True,
+        tqdm=tqdm,
+        )
+    assert stats.stats.tobytes() == stats2.stats.tobytes()

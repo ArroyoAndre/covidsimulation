@@ -1,9 +1,13 @@
+from typing import Optional
+from dataclasses import dataclass
 
+import numpy as np
+
+
+@dataclass
 class AgeGroup:
-  def __init__(self, index, severity, isolation_adherence, isolation_effectiveness, 
-               diagnosis_delay=None):
-    self.index = index
-    self.severity = severity
-    self.isolation_adherence = isolation_adherence
-    self.isolation_effectiveness = isolation_effectiveness
-    self.diagnosis_delay = diagnosis_delay  # If set, lab is ignored
+    index: int
+    severity: np.array
+    isolation_adherence: float
+    isolation_effectiveness: float
+    diagnosis_delay: Optional[float]  # If set, lab is ignored

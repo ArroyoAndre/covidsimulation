@@ -1,5 +1,7 @@
 # covidsimulation
-Covid Epidemics Simulation with Simpy
+Covid Epidemics Simulation - Individual-based dynamic model in python and cython with Simpy
+
+_"All models are wrong, but some are useful." __George Box___
 
 # Instructions
 1. Clone this repo
@@ -11,6 +13,7 @@ Covid Epidemics Simulation with Simpy
 
 # Understanding the code
 
+This is an IBDM for Covid-19.
 The model is based on the concept of `Person`. Each `Person`has several state variables
 indicating her health, home location, age, etc, and also indicating the progression of
 the disease. All happening with uncertainty. Statistics about the whole population are

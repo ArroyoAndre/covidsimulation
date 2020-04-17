@@ -1,4 +1,5 @@
-# disticuls: language = c++
+# distutils: language = c++
+#cython: language_level=3
 
 # Copyright 2020 André Arroyo and contributors
 # 
@@ -168,8 +169,11 @@ cdef class SimulationConstants:
     cdef public float incubation_to_symptoms_variable_fraction
     cdef public float contagion_duration_shape
     cdef public float contagion_duration_scale
+    cdef public float time_to_outcome_severe_scale
+    cdef public float time_to_outcome_severe_shape
+    cdef public float time_to_hospitalization_severe_proportion
 
-    def __init__(self):  # DEFAULT SIMULATION PARAMENTERS are set here
+    def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
         self.survival_probability_in_severe_overcapacity = 0.3
         self.survival_probability_without_hospital_bed = 0.9
@@ -180,8 +184,33 @@ cdef class SimulationConstants:
         self.incubation_to_symptoms_variable_fraction = 0.3
         self.contagion_duration_shape = 2.0
         self.contagion_duration_scale = 4.0
+        self.time_to_outcome_severe_scale = 12.0
+        self.time_to_outcome_severe_shape = 2.0
+        self.time_to_hospitalization_severe_proportion = 0.5
 
 
+    def __init__(self, *args, **kwargs):
+        if args:
+            raise ValueError('SimulationConstants does not accept positional arguments')
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def __repr__(self):
+        vals = ', '.join(['%s=%s' % (at, round(getattr(self, at), 2)) for at in dir(self) if not at.startswith('_') ])
+        return 'SimulationConstants(%s)' % vals
+
+    def __reduce__(self):
+        return (SimulationConstants, tuple(), self.__getstate__())
+
+    def __getstate__(self):
+        return {at: round(getattr(self, at), 2) for at in dir(self) if not at.startswith('_')}
+
+    def __setstate__(self, state):
+        for at, value in state.items():
+            setattr(self, at, value)
+
+    def __hash__(self):
+        return hash(self.__repr__())
 
 
 ####
@@ -371,11 +400,24 @@ cdef class Person:
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
         self.env.request_exam(1, self)
+        self.request_diagnosis()
 
     cdef configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
     
+    def request_diagnosis(self):
+        diagnosis_delay = self.age_group.diagnosis_delay
+        if diagnosis_delay is None:
+            self.env.solicitar_exame(0, self)
+        else:
+            self.env.process(self.wait_for_diagnosis(diagnosis_delay))
+
+    def wait_for_diagnosis(self, float diagnosis_delay):
+        cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
+        yield self.env.timeout(diagnosis_delay)
+        self.diagnosticado = True
+
     def run_hospitalization(self, time_until_hospitalization):
         yield self.env.timeout(time_until_hospitalization)
         if self.dead:
@@ -624,6 +666,11 @@ cdef int get_rt(Person person):
 cdef int get_susceptible(Person person):
     return person.susceptible
 
+cdef int get_confirmed_inpatients(Person pessoa):
+    return pessoa.internado and pessoa.diagnosticado
+
+cdef int get_confirmed_in_icu(Person pessoa):
+    return pessoa.em_uti and pessoa.diagnosticado
 
 cdef list fmetrics = [
     get_person,
@@ -639,7 +686,10 @@ cdef list fmetrics = [
     get_contagious,
     get_contagion_ended,
     get_rt,
-    get_susceptible,
+    get_succeptible,
+    get_em_leito,
+    get_confirmed_in_icu,
+    get_confirmed_inpatients,
 ]
 
 
@@ -656,8 +706,11 @@ MEASUREMENTS = [
     'in_hospital_bed',
     'contagious',
     'contagion_ended',
-    'transmitted',
-    'susceptible',
+    'transmited',
+    'succeptible',
+    'in_hospital_bed',
+    'confirmed_in_intensive_care',
+    'confirmed_inpatients'
 ]
 
 

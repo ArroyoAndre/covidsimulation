@@ -6,10 +6,12 @@ __pycache__
 .so
 .o
 build/
+saved/
 .idea
 .vscode
 .pyc
 .pkl
 .ipynb
 !Example.ipynb
+!examples/*.ipynb
 .png
