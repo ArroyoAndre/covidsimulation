@@ -93,11 +93,15 @@ def aplica_isolamento(env, dia_inicio, fator_isolamento):
     yield env.timeout(dia_inicio - env.now)
     while env.d0 is None or dia_inicio > env.now - env.d0:
         yield env.timeout(1.0)
-    desvio_logit = (env.desvio_isolamento - 0.5) / 5.0
-    fator_isolamento = np.power(fator_isolamento, 0.65)
-    env.fator_isolamento = cs.logit_transform_value(fator_isolamento, desvio_logit)
-    for pessoa in env.pessoas:
-        pessoa.em_isolamento = pessoa.home.isolation_propensity < env.fator_isolamento
+    if isinstance(fator_isolamento, float):
+        desvio_logit = (env.desvio_isolamento - 0.5) / 5.0
+        fator_isolamento = np.power(fator_isolamento, 0.65)
+        env.fator_isolamento = cs.logit_transform_value(fator_isolamento, desvio_logit)
+        for pessoa in env.pessoas:
+            pessoa.em_isolamento = pessoa.home.isolation_propensity < env.fator_isolamento
+    else:
+        for pessoa in env.pessoas:
+            fator_isolamento(pessoa)
 
 
 def cria_populacoes(env):
