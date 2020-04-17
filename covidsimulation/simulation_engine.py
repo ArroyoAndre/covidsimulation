@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple
 from multiprocessing import Pool, cpu_count
 from . import simulation as cs
 from .cache import get_from_cache, save_to_cache
-from .lab import laboratorio
+from .lab import laboratory
 from .parameters import Parameters
 from .population import Population
 from .progress import ProgressBar
@@ -64,8 +64,8 @@ def set_initial_infection(env, people):
 
 def get_population(env, population_params):
     people = []
-    n = int(population_params['inhabitants'] * env.scaling)
-    initially_infected = population_params['initially_infected']
+    n = int(population_params.inhabitants * env.scaling)
+    initially_infected = population_params.seed_infections
     while len(people) < n:
         people.extend(generate_people_in_new_house(env, population_params))
     for _ in range(initially_infected):
@@ -74,15 +74,15 @@ def get_population(env, population_params):
 
 
 def generate_people_in_new_house(env, population_params):
-    house_size = get_house_size(population_params['house_sizes'])
-    house = cs.Home(population_params['shift'])
-    age_probabilities = population_params['age_probabilities']
-    age_risk = population_params['age_risk']
-    age_group_house = get_age_group(age_probabilities, age_risk)
+    house_size = get_house_size(population_params.home_size_probabilities)
+    house = cs.Home(population_params.geosocial_displacement)
+    age_probabilities = population_params.age_probabilities
+    age_groups = population_params.age_groups
+    age_group_house = get_age_group(age_probabilities, age_groups)
     for _ in range(house_size):
         age_group = (age_group_house
                      if np.random.random() < env.sim_params.home_age_cofactor
-                     else get_age_group(age_probabilities, age_risk)
+                     else get_age_group(age_probabilities, age_groups)
                      )
         yield cs.Person(env, age_group, house)
 
@@ -103,15 +103,15 @@ def apply_isolation(env, start_date, isolation_factor):
 def create_populations(env):
     populations = {}
     for population_params in env.sim_params.population_segments:
-        for i, age_group in enumerate(population_params['age_risk']):
+        for i, age_group in enumerate(population_params.age_groups):
             age_group_cp = copy(age_group)
             severity = np.array(age_group_cp.severity)
             age_bias = env.severity_bias * (i - 4)
             new_odds = np.exp(np.log(severity / (1.0 - severity)
                                      ) - env.severity_deviation + age_bias)
             age_group_cp.severity = new_odds / (1.0 + new_odds)
-            population_params['age_risk'][i] = age_group_cp
-        populations[population_name] = get_population(env, population_params)
+            population_params.age_groups[i] = age_group_cp
+        populations[population_params.name] = get_population(env, population_params)
     return populations
 
 def simulate(
@@ -171,7 +171,7 @@ def simulate(
     for people in env.populations.values():
         env.people.extend(people)
     env.process(track_population(env))
-    for start_date, isolation_factor in isolations:
+    for start_date, isolation_factor in sim_params.distancing:
         env.process(apply_isolation(env, start_date, isolation_factor))
     while not env.d0:
         env.run(until=env.now + 1)
