@@ -172,6 +172,7 @@ cdef class SimulationConstants:
     cdef public float time_to_outcome_severe_scale
     cdef public float time_to_outcome_severe_shape
     cdef public float time_to_hospitalization_severe_proportion
+    cdef public float immunization_period
 
     def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
@@ -187,7 +188,7 @@ cdef class SimulationConstants:
         self.time_to_outcome_severe_scale = 12.0
         self.time_to_outcome_severe_shape = 2.0
         self.time_to_hospitalization_severe_proportion = 0.5
-
+        self.immunization_period = 0.0  # Mean immunization duration. Permanent if 0.0
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -545,6 +546,7 @@ cdef class Person:
         if self.morto:
             return
         self.ativo = False
+        self.setup_remove_immunization()
         if self.leito_req:
             self.leito_req.__exit__(None, None, None)
             self.leito_req = None
@@ -560,8 +562,9 @@ cdef class Person:
         yield self.env.timeout(tempo_alta)
         if self.morto:
             return
-        self.ativo = False 
-    
+        self.ativo = False
+        self.setup_remove_immunization()
+
     def rodar_morte(self, tempo_ate_morte):
         yield self.env.timeout(tempo_ate_morte)
         if self.morto:
@@ -622,6 +625,17 @@ cdef class Person:
             yield self.env.timeout(
                 np.random.exponential(self.env.tempo_medio_entre_contagios)
                 )
+
+    def setup_remove_immunization(self):
+        if self.sim_consts.immunization_period:
+            self.env.process(self.run_remove_immunization())
+
+    def run_remove_immunization(self):
+        immunization_timeout = np.random.exponential(self.sim_consts.immunization_period)
+        yield self.env.timeout(immunization_timeout)
+        if not self.morto:
+            self.succeptible = True
+        
 
 ########
 ##  Logs
