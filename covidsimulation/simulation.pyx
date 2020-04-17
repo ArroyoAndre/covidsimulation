@@ -667,10 +667,10 @@ cdef int get_susceptible(Person person):
     return person.susceptible
 
 cdef int get_confirmed_inpatients(Person pessoa):
-    return pessoa.internado and pessoa.diagnosticado
+    return pessoa.hospitalized and pessoa.diagnosed
 
 cdef int get_confirmed_in_icu(Person pessoa):
-    return pessoa.em_uti and pessoa.diagnosticado
+    return pessoa.em_uti and pessoa.diagnosed
 
 cdef list fmetrics = [
     get_person,
@@ -686,8 +686,8 @@ cdef list fmetrics = [
     get_contagious,
     get_contagion_ended,
     get_rt,
-    get_succeptible,
-    get_em_leito,
+    get_susceptible,
+    get_in_hospital_bed,
     get_confirmed_in_icu,
     get_confirmed_inpatients,
 ]
@@ -707,7 +707,7 @@ MEASUREMENTS = [
     'contagious',
     'contagion_ended',
     'transmited',
-    'succeptible',
+    'susceptible',
     'in_hospital_bed',
     'confirmed_in_intensive_care',
     'confirmed_inpatients'
