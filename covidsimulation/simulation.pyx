@@ -359,7 +359,7 @@ cdef class Person:
             self.configurar_evolucao_internacao()
         elif self.expected_outcome == Outcome.MODERATE:
             self.configurar_evolucao_moderado_em_casa()
-        elif self.expected_outcome == Outcome.MODERATE:
+        else:
             self.configurar_evolucao_leve_em_casa()
 
     cdef configurar_evolucao_morte(self):
