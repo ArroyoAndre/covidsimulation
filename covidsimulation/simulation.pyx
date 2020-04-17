@@ -666,11 +666,11 @@ cdef int get_rt(Person person):
 cdef int get_susceptible(Person person):
     return person.susceptible
 
-cdef int get_confirmed_inpatients(Person pessoa):
-    return pessoa.hospitalized and pessoa.diagnosed
+cdef int get_confirmed_inpatients(Person person):
+    return person.hospitalized and person.diagnosed
 
-cdef int get_confirmed_in_icu(Person pessoa):
-    return pessoa.em_uti and pessoa.diagnosed
+cdef int get_confirmed_in_icu(Person person):
+    return person.em_uti and person.diagnosed
 
 cdef list fmetrics = [
     get_person,
