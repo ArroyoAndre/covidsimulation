@@ -630,8 +630,8 @@ cdef class Person:
     def run_remove_immunization(self):
         immunization_timeout = np.random.exponential(self.sim_consts.immunization_period)
         yield self.env.timeout(immunization_timeout)
-        if not self.morto:
-            self.succeptible = True
+        if not self.dead:
+            self.susceptible = True
         
 
 ########
@@ -684,7 +684,7 @@ cdef int get_confirmed_inpatients(Person person):
     return person.hospitalized and person.diagnosed
 
 cdef int get_confirmed_in_icu(Person person):
-    return person.em_uti and person.diagnosed
+    return person.in_icu and person.diagnosed
 
 cdef list fmetrics = [
     get_person,
