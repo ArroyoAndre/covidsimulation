@@ -6,8 +6,8 @@ import numpy as np
 
 @dataclass
 class AgeGroup:
-    indice_faixa: int
-    severidades: np.ndarray
-    adesao_isolamento: float
-    efetividade_isolamento: float
-    diagnosis_delay: Optional[float] = None  # if set, lab is ignored
+    index: int
+    severity: np.array
+    isolation_adherence: float
+    isolation_effectiveness: float
+    diagnosis_delay: Optional[float]  # If set, lab is ignored

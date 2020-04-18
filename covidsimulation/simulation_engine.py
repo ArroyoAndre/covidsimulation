@@ -1,14 +1,18 @@
+
 from typing import List, Dict, Tuple, Optional
 from copy import copy, deepcopy
 from functools import partial
 from multiprocessing import Manager, Pool, Queue, cpu_count
 
+
 import numpy as np
 import simpy
-
+from copy import copy
+from typing import List, Dict, Tuple
+from multiprocessing import Pool, cpu_count
 from . import simulation as cs
 from .cache import get_from_cache, save_to_cache
-from .lab import laboratorio
+from .lab import laboratory
 from .parameters import Parameters
 from .population import Population
 from .progress import ProgressBar
@@ -17,92 +21,85 @@ from .metrics import METRICS
 
 SIMULATION_ENGINE_VERSION = '0.0.1'
 
-
-def get_matriz_estatisticas(env, duration):
-    num_populacoes = len(env.populacoes)
-    num_metricas = len(cs.MEASUREMENTS)
-    num_faixas = len(cs.age_str)
-    stats = np.zeros([num_populacoes, num_metricas, num_faixas, duration])
+def get_stats_matrix(env, duration):
+    num_populations = len(env.populations)
+    num_metrics = len(cs.MEASUREMENTS)
+    num_ages = len(cs.age_str)
+    stats = np.zeros([num_populations, num_metrics, num_ages, duration])
     return stats
 
 
-def monitorar_populacao(env):
+def track_population(env):
     while True:
         yield env.timeout(1.0)
         if env.d0 is None:
-            if env.sim_params.d0_infections * env.scaling < np.array([p.infectado for p in env.pessoas]).sum():
-                env.d0 = int(env.now + 0.01)
+            if env.sim_params.d0_infections * env.scaling < np.array([p.infected for p in env.people]).sum():
+                env.d0 = int(env.now+0.01)
             else:
                 continue
         if int(env.now + 0.01) - env.d0 >= env.duration:
             return
-        cs.log_estatisticas(env)
+        cs.log_stats(env)
         if env.simulation_queue:
             env.simulation_queue.put(1)
 
 
-#        if (env.sim_number % 16) == 0:  # Don't show progress
-#            print(int(env.now+0.01))
+def get_house_size(house_sizes):  # Number of people living in the same house
+    return np.random.choice(len(house_sizes), p=house_sizes)
 
 
-def get_tamanho_casa(tamanho_casas):  # Número de pessoas morando na mesma casa
-    return np.random.choice(len(tamanho_casas), p=tamanho_casas)
+def get_age_group(age_probabilities, age_risk):
+    return np.random.choice(age_risk, p=age_probabilities)
 
 
-def get_grupo_idade(probabilidade_faixas, risco_faixas):
-    return np.random.choice(risco_faixas, p=probabilidade_faixas)
 
-
-def setar_infeccao_inicial(env, pessoas):
-    sucesso = False
-    while not sucesso:
-        alguem = cs.choice(pessoas, 1)[0]
-        if alguem.age_group.indice_faixa < env.sim_params.min_age_group_initially_infected:
+def set_initial_infection(env, people):
+    success = False
+    while not success:
+        someone = cs.choice(people, 1)[0]
+        if someone.age_group.index < env.sim_params.min_age_group_initially_infected:
             continue
-        sucesso = alguem.expose_to_virus()
+        success = someone.expose_to_virus()
 
 
-def get_populacao(env, param_populacao: Population):
-    pessoas = []
-    n = int(param_populacao.inhabitants * env.scaling)
-    infectados_iniciais = param_populacao.seed_infections
-    while len(pessoas) < n:
-        pessoas.extend(generate_pessoas_em_nova_casa(env, param_populacao))
-    for _ in range(infectados_iniciais):
-        setar_infeccao_inicial(env, pessoas)
-    if env.creation_queue:
-        env.creation_queue.put(n)
-    return pessoas
+def get_population(env, population_params):
+    people = []
+    n = int(population_params.inhabitants * env.scaling)
+    initially_infected = population_params.seed_infections
+    while len(people) < n:
+        people.extend(generate_people_in_new_house(env, population_params))
+    for _ in range(initially_infected):
+        set_initial_infection(env, people)
+    return people
 
 
-def generate_pessoas_em_nova_casa(env, param_populacao: Population):
-    tamanho_casa = get_tamanho_casa(param_populacao.home_size_probabilities)
-    casa = cs.Home(param_populacao.geosocial_displacement)
-    probabilidade_faixas = param_populacao.age_probabilities
-    risco_faixas = param_populacao.age_groups
-    grupo_idade_casa = get_grupo_idade(probabilidade_faixas, risco_faixas)
-    for _ in range(tamanho_casa):
-        grupo_idade = (grupo_idade_casa
-                       if np.random.random() < env.sim_params.home_age_cofactor
-                       else get_grupo_idade(probabilidade_faixas, risco_faixas)
-                       )
-        yield cs.Person(env, grupo_idade, casa)
+def generate_people_in_new_house(env, population_params):
+    house_size = get_house_size(population_params.home_size_probabilities)
+    house = cs.Home(population_params.geosocial_displacement)
+    age_probabilities = population_params.age_probabilities
+    age_groups = population_params.age_groups
+    age_group_house = get_age_group(age_probabilities, age_groups)
+    for _ in range(house_size):
+        age_group = (age_group_house
+                     if np.random.random() < env.sim_params.home_age_cofactor
+                     else get_age_group(age_probabilities, age_groups)
+                     )
+        yield cs.Person(env, age_group, house)
 
 
-def cria_populacoes(env):
-    populacoes = {}
-    for param_populacao in env.sim_params.population_segments:
-        for i, grupo_idade in enumerate(param_populacao.age_groups):
-            grupo_idade_modificado = copy(grupo_idade)
-            severidades = np.array(grupo_idade_modificado.severidades)
-            desvio_faixa = env.inclinacao_severidade * (i - 4)
-            novos_odds = np.exp(np.log(severidades / (1.0 - severidades)) - env.desvio_severidade + desvio_faixa)
-            grupo_idade_modificado.severidades = novos_odds / (1.0 + novos_odds)
-            grupo_idade_modificado.adesao_isolamento += param_populacao.isolation_propensity_increase
-            param_populacao.age_groups[i] = grupo_idade_modificado
-        populacoes[param_populacao.name] = get_populacao(env, param_populacao)
-    return populacoes
-
+def create_populations(env):
+    populations = {}
+    for population_params in env.sim_params.population_segments:
+        for i, age_group in enumerate(population_params.age_groups):
+            age_group_cp = copy(age_group)
+            severity = np.array(age_group_cp.severity)
+            age_bias = env.severity_bias * (i - 4)
+            new_odds = np.exp(np.log(severity / (1.0 - severity)
+                                     ) - env.severity_deviation + age_bias)
+            age_group_cp.severity = new_odds / (1.0 + new_odds)
+            population_params.age_groups[i] = age_group_cp
+        populations[population_params.name] = get_population(env, population_params)
+    return populations
 
 def simulate(
         sim_number,
@@ -125,6 +122,7 @@ def simulate(
             if simulation_queue:
                 simulation_queue.put(duration)
             return results[1]
+ 
     cs.seed(sim_number)
     np.random.seed(sim_number)
     env = simpy.Environment()
@@ -134,29 +132,32 @@ def simulate(
     env.duration = duration
     env.sim_number = sim_number
     scaling = simulation_size / sim_params.total_inhabitants
-    env.d0 = None  # Esperando o dia para iniciar logs
-    env.simula_capacidade = simulate_capacity
-    env.desvio_severidade = (np.random.random() + np.random.random() - 1.0) * 0.2 if add_noise else 0.0
-    env.inclinacao_severidade = (np.random.random() - 0.5) * 0.2 if add_noise else 0.0
-    env.desvio_isolamento = np.random.random() if add_noise else 0.0  # incerteza na efetividade do isolamento
-    env.tempo_medio_entre_contagios = sim_params.transmission_scale_days + (
-        (np.random.random() - 0.5) * 0.1 if add_noise else 0.0)
-    env.fator_isolamento = 0.0
+    env.sim_number = sim_number
+    env.d0 = None
+    env.simulate_capacity = simulate_capacity
+    env.severity_deviation = (np.random.random() +
+                             np.random.random() - 1.0) * 0.2
+    env.severity_bias = (np.random.random() - 0.5) * 0.2
+    env.isolation_deviation = np.random.random()  # uncertainty regarding isolation effectiveness
+    env.serial_interval = sim_params.transmission_scale_days + \
+        (np.random.random() - 0.5) * 0.1
+    env.isolation_factor = 0.0
     env.scaling = scaling
-    env.atencao = simpy.resources.resource.PriorityResource(env,
-                                                            capacity=int(sim_params.capacity_hospital_max * scaling))
-    env.leito = simpy.resources.resource.PriorityResource(env,
-                                                          capacity=int(sim_params.capacity_hospital_beds * scaling))
-    env.ventilacao = simpy.resources.resource.PriorityResource(env,
-                                                               capacity=int(sim_params.capacity_ventilators * scaling))
-    env.uti = simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_intensive_care * scaling))
-    env.process(laboratorio(env))
-    env.populacoes = cria_populacoes(env)
-    env.stats = get_matriz_estatisticas(env, duration)
-    env.pessoas = []
-    for pessoas in env.populacoes.values():
-        env.pessoas.extend(pessoas)
-    env.process(monitorar_populacao(env))
+    env.attention = simpy.resources.resource.PriorityResource(
+        env, capacity=int(sim_params.capacity_hospital_max * scaling))
+    env.hospital_bed = simpy.resources.resource.PriorityResource(
+        env, capacity=int(sim_params.capacity_hospital_beds * scaling))
+    env.ventilator = simpy.resources.resource.PriorityResource(
+        env, capacity=int(sim_params.capacity_ventilators * scaling))
+    env.icu = simpy.resources.resource.PriorityResource(
+        env, capacity=int(sim_params.capacity_icu * scaling))
+    env.process(laboratory(env))
+    env.populations = create_populations(env)
+    env.stats = get_stats_matrix(env, duration)
+    env.people = []
+    for people in env.populations.values():
+        env.people.extend(people)
+    env.process(track_population(env))
     for intervention in sim_params.interventions:
         intervention.setup(env)
     while not env.d0:
@@ -211,13 +212,13 @@ def run_simulations(
             creation_bar.join()
             simulation_bar.stop()
             simulation_bar.join()
-    stats = combina_stats(all_stats, sim_params)
+    stats = combine_stats(all_stats, sim_params)
     if fpath:
         stats.save(fpath)
     return stats
 
 
-def combina_stats(all_stats: List[np.ndarray], sim_params: Parameters):
+def combine_stats(all_stats: List[np.ndarray], sim_params: Parameters):
     mstats = np.stack(all_stats)
     population_names = tuple(p.name for p in sim_params.population_segments)
     return Stats(mstats, cs.MEASUREMENTS, METRICS, population_names, cs.age_str, start_date=sim_params.start_date)

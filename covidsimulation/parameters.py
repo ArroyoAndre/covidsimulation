@@ -26,7 +26,7 @@ class Parameters:
     transmission_scale_days: float = DEFAULT_TRANSMISSION_SCALE_DAYS
     min_age_group_initially_infected: int = DEFAULT_MIN_AGE_GROUP_INITIALLY_INFECTED
     capacity_ventilators: int = DEFAULT_CAPACITY_VENTILATORS
-    capacity_intensive_care: int = DEFAULT_CAPACITY_INTENSIVE_CARE
+    capacity_icu: int = DEFAULT_CAPACITY_INTENSIVE_CARE
     capacity_hospital_beds: int = DEFAULT_CAPACITY_HOSPITAL_BEDS
     capacity_hospital_max: int = DEFAULT_CAPACITY_HOSPITAL_MAX  # Maximum overcapacity
     total_inhabitants: Optional[int] = None  # Ignored
