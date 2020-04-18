@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Iterable, Any
 
 import numpy as np
+import simpy
 
 from .simulation import logit_transform_value
 
@@ -16,12 +17,14 @@ class Intervention(abc.ABC):
     def apply(self, env) -> None:
         pass
 
-    def setup(self, env):
+    def setup(self, env: simpy.Environment):
+        env.process(self._run(env))
+
+    def _run(self, env: simpy.Environment):
         yield env.timeout(self.simulation_day)
         while env.d0 is None or self.simulation_day > env.now - env.d0:
             yield env.timeout(1.0)
         self.apply(env)
-
 
 class SocialDistancingChange(Intervention):
 
