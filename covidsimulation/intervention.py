@@ -27,17 +27,17 @@ class SocialDistancingChange(Intervention):
 
     def apply(self, env) -> None:
         distancing_factor = self.parameter
-        desvio_logit = (env.desvio_isolamento - 0.5) / 5.0
-        fator_isolamento = np.power(distancing_factor, 0.65)
-        env.fator_isolamento = logit_transform_value(fator_isolamento, desvio_logit)
-        for pessoa in env.pessoas:
-            pessoa.em_isolamento = pessoa.home.isolation_propensity < env.fator_isolamento
+        desvio_logit = (env.isolation_deviation - 0.5) / 5.0
+        isolation_factor = np.power(distancing_factor, 0.65)
+        env.isolation_factor = logit_transform_value(isolation_factor, desvio_logit)
+        for person in env.people:
+            person.in_isolation = person.home.isolation_propensity < env.isolation_factor
 
 
 class DiagnosisDelayChange(Intervention):
 
     def apply(self, env) -> None:
         diagnosis_max_delay = self.parameter
-        for person in env.pessoas:
+        for person in env.people:
             if person.age_group.diagnosis_delay > diagnosis_max_delay:
                 person.age_group.diagnosis_delay = diagnosis_max_delay
