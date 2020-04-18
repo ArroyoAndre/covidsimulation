@@ -21,22 +21,23 @@ age_structure = {
 
 total_inhabitants = 20000000
 
-PROPENSAO_ISOLAMENTO_FAIXA = [
-    -0.8,  # 0
-    -0.9,  # 1
-    -0.9,  # 2
-    -0.9,  # 3
-    -0.5,  # 4
-    -0.1,  # 5
-    -0.3,  # 6
-    1.0,  # 7
-    1.0,  # 8
+
+ISOLATION_PROPENSITY_PER_AGE = [
+    -0.2,  # 0
+    -0.4,  # 1
+    -0.2,  # 2
+    -0.3,  # 3
+    0.0,  # 4
+    0.2,  # 5
+    0.8,  # 6
+    1.6,  # 7
+    1.6,  # 8
 ]
 
-PROPENSAO_ISOLAMENTO_PUBLICO_CD = 0.0
-PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
 
-PROPENSAO_ISOLAMENTO_PRIVADO = [
+ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.4
+ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.2
+ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC = [
     0.6,  # 0
     0.0,  # 1
     -0.4,  # 2
@@ -48,11 +49,12 @@ PROPENSAO_ISOLAMENTO_PRIVADO = [
     2.5,  # 8
 ]
 
+
 PUBLICO_E = Population(
     name='classe_e',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
-        AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i] + PROPENSAO_ISOLAMENTO_PUBLICO_E, 0.7,
+        AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i] + ISOLATION_PROPENSITY_SOCIAL_CLASS_E, 0.7,
                  diagnosis_delay=18.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
@@ -71,7 +73,7 @@ PUBLICO_CD = Population(
     name='classe_c-d',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
-        AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_FAIXA[i], 0.9,
+        AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i], 0.9,
                  diagnosis_delay=18.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
@@ -90,7 +92,7 @@ PRIVADO = Population(
     name='classe_abc+',
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
-        AgeGroup(i, OUTCOME_THRESHOLDS[i], PROPENSAO_ISOLAMENTO_PRIVADO[i], 0.95, diagnosis_delay=4.0)
+        AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC[i], 0.95, diagnosis_delay=4.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([
@@ -125,7 +127,7 @@ params = Parameters(
     start_date='2020-03-13',
     capacity_hospital_max=60000,
     capacity_hospital_beds=20000,
-    capacity_intensive_care=4000,
+    capacity_icu=4000,
     capacity_ventilators=4000,
     transmission_scale_days=0.3,
     min_age_group_initially_infected=4,
