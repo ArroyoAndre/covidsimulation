@@ -22,30 +22,30 @@ age_structure = {
 total_inhabitants = 20000000
 
 PROPENSAO_ISOLAMENTO_FAIXA = [
-    -0.8,  # 0
-    -0.9,  # 1
-    -0.9,  # 2
-    -0.9,  # 3
-    -0.5,  # 4
-    -0.1,  # 5
-    -0.3,  # 6
-    1.0,  # 7
-    1.0,  # 8
+    0.4,  # 0
+    0.0,  # 1
+    -0.5,  # 2
+    -0.3,  # 3
+    0.2,  # 4
+    0.7,  # 5
+    0.5,  # 6
+    1.8,  # 7
+    1.8,  # 8
 ]
 
 PROPENSAO_ISOLAMENTO_PUBLICO_CD = 0.0
 PROPENSAO_ISOLAMENTO_PUBLICO_E = -1.2
 
 PROPENSAO_ISOLAMENTO_PRIVADO = [
-    0.6,  # 0
+    0.4,  # 0
     0.0,  # 1
-    -0.4,  # 2
-    0.0,  # 3
-    0.4,  # 4
-    1.0,  # 5
-    1.5,  # 6
-    2.5,  # 7
-    2.5,  # 8
+    -0.6,  # 2
+    -0.5,  # 3
+    -0.2,  # 4
+    0.3,  # 5
+    0.8,  # 6
+    1.8,  # 7
+    1.8,  # 8
 ]
 
 PUBLICO_E = Population(
@@ -83,7 +83,7 @@ PUBLICO_CD = Population(
     ]),
     inhabitants=total_inhabitants * 6 / 12.0,
     geosocial_displacement=0.2,  # deslocamento geográfico
-    seed_infections=6,
+    seed_infections=9,
 )
 
 PRIVADO = Population(
@@ -121,7 +121,7 @@ params = Parameters(
     population_segments,
     SimulationConstants(),
     interventions=interventions,
-    d0_infections=20000,
+    d0_infections=18000,
     start_date='2020-03-13',
     capacity_hospital_max=60000,
     capacity_hospital_beds=20000,
