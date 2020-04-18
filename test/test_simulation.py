@@ -8,8 +8,7 @@ from tqdm import tqdm
 def test_run_simulations():
     stats = run_simulations(
         sim_params=br_saopaulo_params, 
-        distancing_list=[], 
-        simulate_capacity=False, 
+        simulate_capacity=False,
         duration=10, 
         number_of_simulations=1, 
         simulation_size=5000, 
@@ -23,8 +22,7 @@ def test_run_simulations():
 def test_run_simulations_cached():
     stats = run_simulations(
         sim_params=br_saopaulo_params, 
-        distancing_list=[], 
-        simulate_capacity=False, 
+        simulate_capacity=False,
         duration=5, 
         number_of_simulations=1, 
         simulation_size=5000, 
@@ -34,8 +32,7 @@ def test_run_simulations_cached():
         )
     stats2 = run_simulations(
         sim_params=br_saopaulo_params, 
-        distancing_list=[], 
-        simulate_capacity=False, 
+        simulate_capacity=False,
         duration=5, 
         number_of_simulations=1, 
         simulation_size=5000, 

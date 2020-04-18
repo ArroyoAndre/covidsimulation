@@ -87,19 +87,6 @@ def generate_people_in_new_house(env, population_params):
         yield cs.Person(env, age_group, house)
 
 
-def apply_isolation(env, start_date, isolation_factor):
-    yield env.timeout(start_date - env.now)
-    while env.d0 is None or start_date > env.now - env.d0:
-        yield env.timeout(1.0)
-
-    logit_deviation = (env.isolation_deviation - 0.5) / 5.0
-    isolation_factor = np.power(isolation_factor, 0.65)
-    env.isolation_factor = cs.logit_transform_value(
-        isolation_factor, logit_deviation)
-    for person in env.people:
-        person.in_isolation = person.home.isolation_propensity < env.isolation_factor
-
-
 def create_populations(env):
     populations = {}
     for population_params in env.sim_params.population_segments:
@@ -171,8 +158,8 @@ def simulate(
     for people in env.populations.values():
         env.people.extend(people)
     env.process(track_population(env))
-    for start_date, isolation_factor in sim_params.distancing:
-        env.process(apply_isolation(env, start_date, isolation_factor))
+    for intervention in sim_params.interventions:
+        intervention.setup(env)
     while not env.d0:
         env.run(until=env.now + 1)
     env.run(until=duration + env.d0 + 0.011)
@@ -184,7 +171,6 @@ def simulate(
 
 def run_simulations(
         sim_params: Parameters,
-        distancing_list: Optional[List[Tuple[float, float]]] = None,  # Set to override sim_param's default distancing
         simulate_capacity=False,
         duration: int = 80,
         number_of_simulations: int = 4,  # For final presentation purposes, a value greater than 10 is recommended
@@ -194,10 +180,6 @@ def run_simulations(
         use_cache=True,
         tqdm=None,  # Optional tqdm function to display progress
 ):
-    if not distancing_list is None:
-        sim_params = deepcopy(sim_params)
-        sim_params.distancing = distancing_list
-
     if tqdm:
         manager = Manager()
         creation_queue = manager.Queue()

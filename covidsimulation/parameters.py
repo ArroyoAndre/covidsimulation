@@ -1,4 +1,5 @@
 from typing import Dict, List, Iterable, Tuple, Optional
+from .intervention import Intervention
 from .simulation import SimulationConstants
 from .population import Population
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ DEFAULT_CAPACITY_HOSPITAL_MAX = 80000  # The default might make no sense dependi
 class Parameters:
     population_segments: Iterable[Population]
     constants: SimulationConstants
-    distancing: Iterable[Tuple[int, float]]
+    interventions: Iterable[Intervention]
     d0_infections: int = DEFAULT_D0_INFECTIONS
     start_date: str = DEFAULT_START_DATE
     home_age_cofactor: float = DEFAULT_HOME_AGE_COFACTOR
@@ -30,5 +31,5 @@ class Parameters:
     capacity_hospital_max: int = DEFAULT_CAPACITY_HOSPITAL_MAX  # Maximum overcapacity
     total_inhabitants: Optional[int] = None  # Ignored
 
-    def __post_init__(self, *args, **kwargs):
+    def __post_init__(self):
         self.total_inhabitants = sum([p.inhabitants for p in self.population_segments])

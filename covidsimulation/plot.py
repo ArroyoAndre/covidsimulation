@@ -55,7 +55,7 @@ def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start):
 
 
 def plot(pop_stats_name_tuples, title, log_scale=False, size=None, stop=None, start=None, ymax=None, cindex=None):
-    fig = go.Figure()
+    fig = go.FigureWidget()
     for color_index, (pop_stats, pop_name) in enumerate(pop_stats_name_tuples):
         color_index = color_index % len(PLOT_COLORS)
         if not cindex is None:
@@ -71,4 +71,4 @@ def plot(pop_stats_name_tuples, title, log_scale=False, size=None, stop=None, st
         fig.update_layout(width=size)
     if len(pop_stats_name_tuples) == 1:
         fig.update_layout(showlegend=False)
-    fig.show()
+    return fig
