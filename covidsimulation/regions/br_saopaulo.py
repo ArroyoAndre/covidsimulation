@@ -2,6 +2,7 @@ import numpy as np
 
 from ..age_group import AgeGroup
 from ..disease_parameters import OUTCOME_THRESHOLDS
+from ..intervention import SocialDistancingChange, DiagnosisDelayChange
 from ..parameters import Parameters
 from ..population import Population
 from ..simulation import SimulationConstants
@@ -105,18 +106,21 @@ PRIVADO = Population(
 
 population_segments = [PRIVADO, PUBLICO_CD, PUBLICO_E]
 
-distancing = [
-    (0, 0.2),  # 2020-03-13
-    (3, 0.45),  # 2020-03-16
-    (9, 0.68),  # 2020-03-22
-    (16, 0.66),  # 2020-03-29
-    (23, 0.62),  # 2020-04-05
+interventions = [
+    SocialDistancingChange(0, 0.2),  # 2020-03-13
+    SocialDistancingChange(3, 0.45),  # 2020-03-16
+    SocialDistancingChange(9, 0.68),  # 2020-03-22
+    SocialDistancingChange(16, 0.66),  # 2020-03-29
+    SocialDistancingChange(23, 0.62),  # 2020-04-05
+    DiagnosisDelayChange(18, 14.0),  # Reductions in confirmations queue around 2020-04-6 - 16
+    DiagnosisDelayChange(25, 10.0),
+    DiagnosisDelayChange(33, 7.0),
 ]
 
 params = Parameters(
     population_segments,
     SimulationConstants(),
-    distancing=distancing,
+    interventions=interventions,
     d0_infections=20000,
     start_date='2020-03-13',
     capacity_hospital_max=60000,

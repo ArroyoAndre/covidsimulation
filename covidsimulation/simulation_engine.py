@@ -89,21 +89,6 @@ def generate_pessoas_em_nova_casa(env, param_populacao: Population):
         yield cs.Person(env, grupo_idade, casa)
 
 
-def aplica_isolamento(env, dia_inicio, fator_isolamento):
-    yield env.timeout(dia_inicio - env.now)
-    while env.d0 is None or dia_inicio > env.now - env.d0:
-        yield env.timeout(1.0)
-    if isinstance(fator_isolamento, float):
-        desvio_logit = (env.desvio_isolamento - 0.5) / 5.0
-        fator_isolamento = np.power(fator_isolamento, 0.65)
-        env.fator_isolamento = cs.logit_transform_value(fator_isolamento, desvio_logit)
-        for pessoa in env.pessoas:
-            pessoa.em_isolamento = pessoa.home.isolation_propensity < env.fator_isolamento
-    else:
-        for pessoa in env.pessoas:
-            fator_isolamento(pessoa)
-
-
 def cria_populacoes(env):
     populacoes = {}
     for param_populacao in env.sim_params.population_segments:
@@ -172,8 +157,8 @@ def simulate(
     for pessoas in env.populacoes.values():
         env.pessoas.extend(pessoas)
     env.process(monitorar_populacao(env))
-    for dia_inicio, fator_isolamento in sim_params.distancing:
-        env.process(aplica_isolamento(env, dia_inicio, fator_isolamento))
+    for intervention in sim_params.interventions:
+        intervention.setup(env)
     while not env.d0:
         env.run(until=env.now + 1)
     env.run(until=duration + env.d0 + 0.011)
@@ -185,7 +170,6 @@ def simulate(
 
 def run_simulations(
         sim_params: Parameters,
-        distancing_list: Optional[List[Tuple[float, float]]] = None,  # Set to override sim_param's default distancing
         simulate_capacity=False,
         duration: int = 80,
         number_of_simulations: int = 4,  # For final presentation purposes, a value greater than 10 is recommended
@@ -195,10 +179,6 @@ def run_simulations(
         use_cache=True,
         tqdm=None,  # Optional tqdm function to display progress
 ):
-    if not distancing_list is None:
-        sim_params = deepcopy(sim_params)
-        sim_params.distancing = distancing_list
-
     if tqdm:
         manager = Manager()
         creation_queue = manager.Queue()
