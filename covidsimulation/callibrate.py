@@ -1,12 +1,13 @@
 from typing import List, Tuple, Dict, Iterable, Callable
 import numpy as np
-from covidsimulation import Parameters, Stats
-from covidsimulation.simulation_engine import simulate, Pool, combina_stats, cpu_count
 from functools import partial
-from covidsimulation.regions.br_saopaulo import params as br_saopaulo_params
 from copy import deepcopy
 from itertools import product
-from collections import defaultdict
+from multiprocessing import Manager, Pool, cpu_count
+
+from . import Parameters, Stats
+from .simulation_engine import simulate, combina_stats, show_progress
+
 
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
 
@@ -34,22 +35,40 @@ def callibrate_parameters(
     """
     sim_params_list, combinations = get_simulation_parameters(sim_params, parameters_to_try, n)
 
+    if tqdm:
+        manager = Manager()
+        creation_queue = manager.Queue()
+        simulation_queue = manager.Queue()
+
+
     simulate_with_params = partial(simulate_wrapped,
                                    simulation_size=simulation_size,
                                    duration=duration,
                                    simulate_capacity=simulate_capacity,
                                    use_cache=use_cache,
                                    add_noise=False,
+                                   creation_queue=creation_queue if tqdm else None,
+                                   simulation_queue=simulation_queue if tqdm else None,
                                    )
     try:
         pool = Pool(min(cpu_count(), len(sim_params_list)))
         all_stats = pool.imap(simulate_with_params, sim_params_list)
         if tqdm:
-            all_stats = tqdm(all_stats, position=0, total=len(sim_params_list))
+            creation_bar, simulation_bar = show_progress(tqdm, creation_queue, simulation_queue, simulation_size,
+                                                         len(sim_params_list), duration)
+            creation_bar.start()
+            simulation_bar.start()
+        all_stats = list(all_stats)
         scores = [score_function(combina_stats(stats, sim_params)) for stats in grouper(all_stats, n)]
     finally:
         pool.close()
         pool.join()
+        if tqdm:
+            creation_bar.stop()
+            creation_bar.join()
+            simulation_bar.stop()
+            simulation_bar.join()
+
     best = np.argsort(np.array(scores))
     return np.array(combinations)[best[:8]]
 
