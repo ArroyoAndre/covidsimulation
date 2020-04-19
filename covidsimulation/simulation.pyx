@@ -244,7 +244,9 @@ cdef class Home:
 
 
 cdef class Person:
+    cdef object senv  # SimulationEnvironment
     cdef object env  # simpy Environment
+    cdef object timeout  # simpy environment timeout
     cdef public object age_group
     cdef SimulationConstants sim_consts
     cdef public float isolation_propensity
@@ -278,9 +280,11 @@ cdef class Person:
     cdef object icu_req
     cdef object ventilator_req
 
-    def __cinit__(self, object env, object age_group, Home home):
-        self.env = env
-        self.sim_consts = env.sim_params.constants
+    def __cinit__(self, object senv, object age_group, Home home):
+        self.senv = senv
+        self.env = senv.env
+        self.timeout = senv.env.timeout
+        self.sim_consts = senv.sim_params.constants
         self.susceptible = True 
         self.infected = False
         self.hospitalized = False
@@ -336,7 +340,7 @@ cdef class Person:
 
     def run_contagion(self):
         self.in_incubation = True
-        yield self.env.timeout(self.incubation_time)
+        yield self.timeout(self.incubation_time)
         self.in_incubation = False
         self.contagious = True
         self.env.process(self.run_contagion_home())
@@ -344,7 +348,7 @@ cdef class Person:
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
         self.configure_evolution()
-        yield self.env.timeout(contagion_duration)
+        yield self.timeout(contagion_duration)
         self.contagious = False
 
     cdef configure_evolution(self):
@@ -410,20 +414,20 @@ cdef class Person:
     def request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
-            self.env.request_exam(1, self)
+            self.senv.lab.request_exam(1, self)
         else:
             self.env.process(self.wait_for_diagnosis(diagnosis_delay))
 
     def wait_for_diagnosis(self, float diagnosis_delay):
         cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
-        yield self.env.timeout(diagnosis_delay)
+        yield self.timeout(diagnosis_delay)
         self.diagnosed = True
 
     def run_hospitalization(self, time_until_hospitalization):
-        yield self.env.timeout(time_until_hospitalization)
+        yield self.timeout(time_until_hospitalization)
         if self.dead:
             return
-        if self.env.simulate_capacity:
+        if self.senv.simulate_capacity:
             self.env.process(self.request_attention())
             yield from self.request_hospital_bed()
         else:
@@ -432,15 +436,15 @@ cdef class Person:
             self.request_diagnosis()
   
     def request_attention(self):
-        attention_req = self.env.attention.request(Outcome.DEATH - self.expected_outcome)
+        attention_req = self.senv.attention.request(Outcome.DEATH - self.expected_outcome)
         request = attention_req.__enter__()
         self.attention_req = attention_req
-        result = yield request | self.env.timeout(np.random.exponential(2.0))
+        result = yield request | self.timeout(np.random.exponential(2.0))
         if request in result:
             if self.attention_req:
                 self.hospitalized = True
                 self.hospitalization_date = self.env.now
-            self.env.request_exam(0, self)
+            self.senv.lab.request_exam(0, self)
         else:
             if self.attention_req:
                 attention_req.__exit__(None, None, None)
@@ -452,10 +456,10 @@ cdef class Person:
 
 
     def request_hospital_bed(self):
-        hospital_bed_req = self.env.hospital_bed.request(8 - self.expected_outcome)
+        hospital_bed_req = self.senv.hospital_bed.request(8 - self.expected_outcome)
         request = hospital_bed_req.__enter__()
         self.hospital_bed_req = hospital_bed_req
-        result = yield request | self.env.timeout(np.random.exponential(2.0))
+        result = yield request | self.timeout(np.random.exponential(2.0))
         if request in result:
             if self.hospital_bed_req:
                 self.in_hospital_bed = True
@@ -469,10 +473,10 @@ cdef class Person:
             yield from self.run_death(0)
 
     def request_icu(self):
-        icu_req = self.env.icu.request(8 - self.expected_outcome)
+        icu_req = self.senv.icu.request(8 - self.expected_outcome)
         request = icu_req.__enter__()
         self.icu_req = icu_req
-        result = yield request | self.env.timeout(np.random.exponential(1.0))
+        result = yield request | self.timeout(np.random.exponential(1.0))
         if request in result:
             if self.icu_req:
                 self.in_icu = True
@@ -486,10 +490,10 @@ cdef class Person:
             yield from self.run_death(0)
 
     def request_ventilator(self):
-        ventilator_req = self.env.ventilator.request(8 - self.expected_outcome)
+        ventilator_req = self.senv.ventilator.request(8 - self.expected_outcome)
         request = ventilator_req.__enter__()
         self.ventilator_req = ventilator_req
-        result = yield request | self.env.timeout(np.random.exponential(1.0))
+        result = yield request | self.timeout(np.random.exponential(1.0))
         if request in result:
             if self.ventilator_req:
                 self.in_ventilator = True
@@ -503,10 +507,10 @@ cdef class Person:
             yield from self.run_death(0)
 
     def run_ventilation(self, tempo_ate_ventilacao):
-        yield self.env.timeout(tempo_ate_ventilacao)
+        yield self.timeout(tempo_ate_ventilacao)
         if self.dead:
             return
-        if self.env.simulate_capacity:
+        if self.senv.simulate_capacity:
             self.env.process(self.request_icu())
             self.env.process(self.request_ventilator())
         else:
@@ -514,7 +518,7 @@ cdef class Person:
             self.in_icu = True
     
     def run_leave_ventilation(self, time_until_icu_without_ventilation):
-        yield self.env.timeout(time_until_icu_without_ventilation)
+        yield self.timeout(time_until_icu_without_ventilation)
         if self.dead:
             return
         if self.ventilator_req:
@@ -523,7 +527,7 @@ cdef class Person:
         self.in_ventilator = False
     
     def run_leave_icu(self, time_until_icu_ends):
-        yield self.env.timeout(time_until_icu_ends)
+        yield self.timeout(time_until_icu_ends)
         if self.dead:
             return
         if self.icu_req:
@@ -532,16 +536,16 @@ cdef class Person:
         self.in_icu = False
 
     def run_enter_icu(self, tempo_ate_icu):
-        yield self.env.timeout(tempo_ate_icu)
+        yield self.timeout(tempo_ate_icu)
         if self.dead:
             return
-        if self.env.simulate_capacity:
+        if self.senv.simulate_capacity:
             yield from self.request_icu()
         else:
             self.in_icu = True
 
     def run_leave_hospital(self, time_until_discharge_from_hospital):
-        yield self.env.timeout(time_until_discharge_from_hospital)
+        yield self.timeout(time_until_discharge_from_hospital)
         if self.dead:
             return
         self.active = False
@@ -558,19 +562,19 @@ cdef class Person:
         self.in_hospital_bed = False
 
     def run_cure(self, time_until_discharge_from_hospital):
-        yield self.env.timeout(time_until_discharge_from_hospital)
+        yield self.timeout(time_until_discharge_from_hospital)
         if self.dead:
             return
         self.active = False
         self.setup_remove_immunization()
     
     def run_death(self, time_until_death):
-        yield self.env.timeout(time_until_death)
+        yield self.timeout(time_until_death)
         if self.dead:
             return
         self.active = False 
         self.contagious = False
-        if self.env.simulate_capacity:
+        if self.senv.simulate_capacity:
             if self.attention_req:
                 self.attention_req.__exit__(None, None, None)
                 self.attention_req = None        
@@ -594,7 +598,7 @@ cdef class Person:
     def run_contagion_home(self):
         while self.contagious and not self.hospitalized:
             self.infect_in_home()
-            yield self.env.timeout(1.0)
+            yield self.timeout(1.0)
 
     def infect_in_home(self):
         for person in self.home.residents:
@@ -609,18 +613,18 @@ cdef class Person:
 
     def run_contagion_street(self):
         cdef Person contact_on_street
-        yield self.env.timeout(
-            np.random.exponential(self.env.serial_interval)
+        yield self.timeout(
+            np.random.exponential(self.senv.randomness.expositions_interval)
             )
         while self.contagious and not self.hospitalized:
             if not self.test_isolation():
-                contact_on_street = choose_contact_on_street(self, self.env.people)
+                contact_on_street = choose_contact_on_street(self, self.senv.people)
                 if contact_on_street.susceptible and not (contact_on_street.test_isolation() 
                                                           or contact_on_street.hospitalized):
                     if contact_on_street.expose_to_virus():
                         self.transmitted += 1
-            yield self.env.timeout(
-                np.random.exponential(self.env.serial_interval)
+            yield self.timeout(
+                np.random.exponential(self.senv.randomness.expositions_interval)
             )
 
     def setup_remove_immunization(self):
@@ -629,7 +633,7 @@ cdef class Person:
 
     def run_remove_immunization(self):
         immunization_timeout = np.random.exponential(self.sim_consts.immunization_period)
-        yield self.env.timeout(immunization_timeout)
+        yield self.timeout(immunization_timeout)
         if not self.dead:
             self.susceptible = True
         
@@ -746,6 +750,6 @@ cdef _log_stats(size_t day, np.ndarray stats, object populations):
                 metric_index += 1
 
                 
-def log_stats(env):
-    day = int(env.now+0.1) - env.d0
-    _log_stats(day, env.stats, env.populations)
+def log_stats(senv):
+    day = int(senv.env.now+0.1) - senv.d0
+    _log_stats(day, senv.stats, senv.populations)

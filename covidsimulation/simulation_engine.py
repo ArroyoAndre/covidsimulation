@@ -1,13 +1,11 @@
-from typing import List, Dict, Tuple, Optional
-from copy import copy, deepcopy
+from typing import List, Dict, Optional, Iterable
+from itertools import chain
 from functools import partial
 from multiprocessing import Manager, Pool, Queue, cpu_count
 
 import numpy as np
 import simpy
 from copy import copy
-from typing import List, Dict, Tuple
-from multiprocessing import Pool, cpu_count
 from . import simulation as cs
 from .cache import get_from_cache, save_to_cache
 from .lab import laboratory
@@ -21,27 +19,27 @@ from .metrics import METRICS
 SIMULATION_ENGINE_VERSION = '0.0.1'
 
 
-def get_stats_matrix(env, duration):
-    num_populations = len(env.populations)
+def get_stats_matrix(populations: Dict, duration):
+    num_populations = len(populations)
     num_metrics = len(cs.MEASUREMENTS)
     num_ages = len(cs.age_str)
     stats = np.zeros([num_populations, num_metrics, num_ages, duration])
     return stats
 
 
-def track_population(env):
+def track_population(senv: SimulationEnvironment):
     while True:
-        yield env.timeout(1.0)
-        if env.d0 is None:
-            if env.sim_params.d0_infections * env.scaling < np.array([p.infected for p in env.people]).sum():
-                env.d0 = int(env.now + 0.01)
+        yield senv.env.timeout(1.0)
+        if senv.d0 is None:
+            if senv.sim_params.d0_infections * senv.scaling < np.array([p.infected for p in senv.people]).sum():
+                senv.d0 = int(senv.env.now + 0.01)
             else:
                 continue
-        if int(env.now + 0.01) - env.d0 >= env.duration:
+        if int(senv.env.now + 0.01) - senv.d0 >= senv.duration:
             return
-        cs.log_stats(env)
-        if env.simulation_queue:
-            env.simulation_queue.put(1)
+        cs.log_stats(senv)
+        if senv.simulation_queue:
+            senv.simulation_queue.put(1)
 
 
 def get_house_size(house_sizes):  # Number of people living in the same house
@@ -52,7 +50,7 @@ def get_age_group(age_probabilities, age_risk):
     return np.random.choice(age_risk, p=age_probabilities)
 
 
-def set_initial_infection(sim_params: Parameters, people: List[Person]):
+def set_initial_infection(sim_params: Parameters, people: Iterable[cs.Person]):
     success = False
     while not success:
         someone = cs.choice(people, 1)[0]
@@ -61,19 +59,19 @@ def set_initial_infection(sim_params: Parameters, people: List[Person]):
         success = someone.expose_to_virus()
 
 
-def get_population(env: simpy.Environment, sim_params: Parameters, population_params: Population, scaling: float) -> \
-        List[Person]:
+def get_population(senv: SimulationEnvironment, population_params: Population) -> \
+        List:
     people = []
-    n = int(population_params.inhabitants * scaling)
+    n = int(population_params.inhabitants * senv.scaling)
     initially_infected = population_params.seed_infections
     while len(people) < n:
-        people.extend(generate_people_in_new_house(env, sim_params, population_params))
+        people.extend(generate_people_in_new_house(senv, population_params))
     for _ in range(initially_infected):
-        set_initial_infection(sim_params, people)
+        set_initial_infection(senv.sim_params, people)
     return people
 
 
-def generate_people_in_new_house(env: simpy.Environment, sim_params: Parameters, population_params: Population):
+def generate_people_in_new_house(senv: SimulationEnvironment, population_params: Population):
     house_size = get_house_size(population_params.home_size_probabilities)
     house = cs.Home(population_params.geosocial_displacement)
     age_probabilities = population_params.age_probabilities
@@ -81,25 +79,24 @@ def generate_people_in_new_house(env: simpy.Environment, sim_params: Parameters,
     age_group_house = get_age_group(age_probabilities, age_groups)
     for _ in range(house_size):
         age_group = (age_group_house
-                     if np.random.random() < sim_params.home_age_cofactor
+                     if np.random.random() < senv.sim_params.home_age_cofactor
                      else get_age_group(age_probabilities, age_groups)
                      )
-        yield cs.Person(env, age_group, house)
+        yield cs.Person(senv, age_group, house)
 
 
-def create_populations(env: simpy.Environment, sim_params: Parameters, randomness: SimulationRandomness,
-                       scaling: float) -> Dict[str, List[Person]]:
+def create_populations(senv: SimulationEnvironment) -> Dict[str, List[cs.Person]]:
     populations = {}
-    for population_params in sim_params.population_segments:
+    for population_params in senv.sim_params.population_segments:
         for i, age_group in enumerate(population_params.age_groups):
             age_group_cp = copy(age_group)
             severity = np.array(age_group_cp.severity)
-            age_bias = randomness.severity_bias * (i - 4)
+            age_bias = senv.randomness.severity_bias * (i - 4)
             new_odds = np.exp(np.log(severity / (1.0 - severity)
-                                     ) - randomness.severity_deviation + age_bias)
+                                     ) - senv.randomness.severity_deviation + age_bias)
             age_group_cp.severity = new_odds / (1.0 + new_odds)
             population_params.age_groups[i] = age_group_cp
-        populations[population_params.name] = get_population(env, sim_params, population_params, scaling)
+        populations[population_params.name] = get_population(senv, population_params)
     return populations
 
 
@@ -129,19 +126,17 @@ def simulate(
     np.random.seed(sim_number)
     scaling = simulation_size / sim_params.total_inhabitants
     env = simpy.Environment()
-    sim_params = deepcopy(sim_params)
+    sim_params = sim_params.clone()
     randomness = get_simulation_randomness(sim_params)
-    populations = create_populations(env, sim_params, randomness, scaling)
-
     senv = SimulationEnvironment(
         env=env,
-        sim_params=deepcopy(sim_params),
+        sim_params=sim_params,
         duration=duration,
         sim_number=sim_number,
         scaling=scaling,
         simulate_capacity=simulate_capacity,
-
         isolation_factor=0.0,
+        randomness=randomness,
         attention=simpy.resources.resource.PriorityResource(env,
                                                             capacity=int(sim_params.capacity_hospital_max * scaling)),
         hospital_bed=simpy.resources.resource.PriorityResource(env,
@@ -150,53 +145,20 @@ def simulate(
         ventilator=simpy.resources.resource.PriorityResource(env,
                                                              capacity=int(sim_params.capacity_ventilators * scaling)),
         icu=simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_icu * scaling)),
-        populations=populations,
-        stats: np.ndarray
-    people: List[Person]
-    creation_queue: Optional[Queue]
-    simulation_queue: Optional[Queue]
+        stats=get_stats_matrix(sim_params.population_segments, duration),
+        creation_queue=creation_queue,
+        simulation_queue=simulation_queue,
+        lab=laboratory(env, scaling),
     )
-
-
-
-
-
-
-    env = simpy.Environment()
-    env.creation_queue = creation_queue
-    env.simulation_queue = simulation_queue
-    env.sim_params = deepcopy(sim_params)
-    env.duration = duration
-    env.sim_number = sim_number
-    scaling = simulation_size / sim_params.total_inhabitants
-    env.sim_number = sim_number
-    env.d0 = None
-    env.simulate_capacity = simulate_capacity
-    env.severity_deviation = (np.random.random() +
-                              np.random.random() - 1.0) * 0.2
-    env.severity_bias = (np.random.random() - 0.5) * 0.2
-    env.isolation_deviation = np.random.random()  # uncertainty regarding isolation effectiveness
-    env.serial_interval = sim_params.transmission_scale_days + \
-                          (np.random.random() - 0.5) * 0.1
-    env.isolation_factor = 0.0
-    env.scaling = scaling
-    env.attention =
-    env.hospital_bed =
-    env.ventilator =
-    env.icu =
-    env.process(laboratory(env))
-    env.populations = create_populations(env)
-    env.stats = get_stats_matrix(env, duration)
-    env.people = []
-    for people in env.populations.values():
-        env.people.extend(people)
-    env.process(track_population(env))
+    senv.populations = create_populations(senv)
+    senv.people = list(chain.from_iterable(senv.populations.values()))
+    env.process(track_population(senv))
     for intervention in sim_params.interventions:
-        intervention.setup(env)
-    while not env.d0:
+        intervention.setup(senv)
+    while not senv.d0:
         env.run(until=env.now + 1)
-    env.run(until=duration + env.d0 + 0.011)
-    stats = env.stats / env.scaling
+    env.run(until=duration + senv.d0 + 0.011)
+    stats = senv.stats / senv.scaling
     if use_cache:
         save_to_cache(args, stats)
     return stats
@@ -207,7 +169,7 @@ def get_simulation_randomness(sim_params: Parameters):
         severity_deviation=(np.random.random() + np.random.random() - 1.0) * 0.2,
         severity_bias=(np.random.random() - 0.5) * 0.2,
         isolation_deviation=np.random.random(),  # uncertainty regarding isolation effectiveness
-        serial_interval=sim_params.transmission_scale_days + (np.random.random() - 0.5) * 0.1,
+        expositions_interval=sim_params.transmission_scale_days + (np.random.random() - 0.5) * 0.1,
     )
 
 

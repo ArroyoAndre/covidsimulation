@@ -1,8 +1,11 @@
 from typing import Dict, List, Iterable, Tuple, Optional
+from copy import deepcopy
+from dataclasses import dataclass
+
 from .intervention import Intervention
 from .simulation import SimulationConstants
 from .population import Population
-from dataclasses import dataclass
+
 
 DEFAULT_D0_INFECTIONS = 2500
 DEFAULT_HOME_AGE_COFACTOR = 0.4
@@ -32,4 +35,7 @@ class Parameters:
     total_inhabitants: Optional[int] = None  # Ignored
 
     def __post_init__(self):
-        self.total_inhabitants = sum([p.inhabitants for p in self.population_segments])
+        self.total_inhabitants = sum(p.inhabitants for p in self.population_segments)
+
+    def clone(self):
+        return deepcopy(self)
