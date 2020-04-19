@@ -444,7 +444,7 @@ cdef class Person:
             if self.attention_req:
                 self.hospitalized = True
                 self.hospitalization_date = self.env.now
-            self.senv.lab.request_exam(0, self)
+            self.request_diagnosis()
         else:
             if self.attention_req:
                 attention_req.__exit__(None, None, None)
