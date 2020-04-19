@@ -6,7 +6,7 @@ from itertools import product
 from multiprocessing import Manager, Pool, cpu_count
 
 from . import Parameters, Stats
-from .simulation_engine import simulate, combina_stats, show_progress
+from .simulation_engine import simulate, combine_stats, show_progress
 
 
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
@@ -59,7 +59,7 @@ def callibrate_parameters(
             creation_bar.start()
             simulation_bar.start()
         all_stats = list(all_stats)
-        scores = [score_function(combina_stats(stats, sim_params)) for stats in grouper(all_stats, n)]
+        scores = [score_function(combine_stats(stats, sim_params)) for stats in grouper(all_stats, n)]
     finally:
         pool.close()
         pool.join()
