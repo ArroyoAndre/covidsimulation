@@ -720,25 +720,30 @@ cdef int get_confirmed_inpatients(Person person):
 cdef int get_confirmed_in_icu(Person person):
     return person.in_icu and person.diagnosed
 
-cdef list fmetrics = [
-    get_person,
-    get_infected,
-    get_in_isolation,
-    get_diagnosed,
-    get_deaths,
-    get_confirmed_deaths,
-    get_hospitalized,
-    get_in_ventilator,
-    get_in_icu,
-    get_in_hospital_bed,
-    get_contagious,
-    get_contagion_ended,
-    get_rt,
-    get_susceptible,
-    get_in_hospital_bed,
-    get_confirmed_in_icu,
-    get_confirmed_inpatients,
-]
+ctypedef int (*int_from_person)(Person)
+
+cdef enum:
+    NUM_FUNCTIONS = 17
+
+cdef int_from_person[NUM_FUNCTIONS] fmetrics
+
+fmetrics[0] = &get_person
+fmetrics[1] = &get_infected
+fmetrics[2] = &get_in_isolation
+fmetrics[3] = &get_diagnosed
+fmetrics[4] = &get_deaths
+fmetrics[5] = &get_confirmed_deaths
+fmetrics[6] = &get_hospitalized
+fmetrics[7] = &get_in_ventilator
+fmetrics[8] = &get_in_icu
+fmetrics[9] = &get_in_hospital_bed
+fmetrics[10] = &get_contagious
+fmetrics[11] = &get_contagion_ended
+fmetrics[12] = &get_rt
+fmetrics[13] = &get_susceptible
+fmetrics[14] = &get_in_hospital_bed
+fmetrics[15] = &get_confirmed_in_icu
+fmetrics[16] = &get_confirmed_inpatients
 
 
 MEASUREMENTS = [
@@ -762,9 +767,12 @@ MEASUREMENTS = [
 ]
 
 
+assert len(MEASUREMENTS) == NUM_FUNCTIONS
+
+
 cdef _log_stats(size_t day, np.ndarray stats, object populations):
     global fmetrics
-    cdef Py_ssize_t stop = len(fmetrics)
+    cdef Py_ssize_t stop = NUM_FUNCTIONS
     cdef Py_ssize_t age_index
     cdef Py_ssize_t i
     cdef int value
