@@ -158,7 +158,7 @@ def simulate(
         env.pessoas.extend(pessoas)
     env.process(monitorar_populacao(env))
     for intervention in sim_params.interventions:
-        intervention.setup(env)
+        env.process(intervention.setup(env))
     while not env.d0:
         env.run(until=env.now + 1)
     env.run(until=duration + env.d0 + 0.011)
