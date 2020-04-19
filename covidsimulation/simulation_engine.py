@@ -43,11 +43,11 @@ def track_population(senv: SimulationEnvironment):
 
 
 def get_house_size(house_sizes):  # Number of people living in the same house
-    return np.random.choice(len(house_sizes), p=house_sizes)
+    return cs.p_choice(house_sizes)
 
 
 def get_age_group(age_probabilities, age_risk):
-    return np.random.choice(age_risk, p=age_probabilities)
+    return age_risk[cs.p_choice(age_probabilities)]
 
 
 def set_initial_infection(sim_params: Parameters, people: Iterable[cs.Person]):
@@ -79,9 +79,10 @@ def generate_people_in_new_house(senv: SimulationEnvironment, population_params:
     age_probabilities = population_params.age_probabilities
     age_groups = population_params.age_groups
     age_group_house = get_age_group(age_probabilities, age_groups)
+    home_age_cofactor = senv.sim_params.home_age_cofactor
     for _ in range(house_size):
         age_group = (age_group_house
-                     if np.random.random() < senv.sim_params.home_age_cofactor
+                     if np.random.random() < home_age_cofactor
                      else get_age_group(age_probabilities, age_groups)
                      )
         yield cs.Person(senv, age_group, house)

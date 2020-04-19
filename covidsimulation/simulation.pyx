@@ -129,6 +129,19 @@ def choice(arr, sample_size):
     return _choice(arr, sample_size)
 
 
+def p_choice(np.ndarray p):
+    """
+    p: numpy.ndarray - Probabilities of each class. Must sum to 1.0.
+    """
+    cdef double total = 0
+    cdef double luck = (rand()) / (RAND_MAX + 1.0)
+    for i in range(len(p)):
+        total += p[i]
+        if luck < total:
+            return i
+    return len(p) - 1
+
+
 cdef sample_indices_with_replacement(size_t population_len, size_t sample_size):
     cdef vector[size_t] indices
     indices.reserve(sample_size)
