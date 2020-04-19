@@ -256,6 +256,7 @@ cdef class Home:
 cdef class Person:
     cdef object senv  # SimulationEnvironment
     cdef object env  # simpy Environment
+    cdef object process  # simpy async process
     cdef object timeout  # simpy environment timeout
     cdef public object age_group
     cdef Py_ssize_t age_group_index
@@ -295,6 +296,7 @@ cdef class Person:
         self.senv = senv
         self.env = senv.env
         self.timeout = senv.env.timeout
+        self.process = senv.env.process
         self.sim_consts = senv.sim_params.constants
         self.susceptible = True 
         self.infected = False
@@ -323,7 +325,7 @@ cdef class Person:
         self.age_group = age_group
         self.age_group_index = age_group.index
         self.isolation_propensity = self.get_isolation_propensity()
-        self.expected_outcome = get_outcome(self.age_group.severity)
+        self.expected_outcome = 0
         home.add_person(self)
 
     cdef get_isolation_propensity(self):
@@ -342,12 +344,15 @@ cdef class Person:
             return False
         self.susceptible = False
         self.infection_date = self.env.now
-        if self.expected_outcome == Outcome.NO_INFECTION:
-            return False        
+        cdef size_t expected_outcome = get_outcome(self.age_group.severity)
+        if expected_outcome == Outcome.NO_INFECTION:
+            return False
+        else:
+            self.expected_outcome = expected_outcome
         self.calculate_case_params()
         self.infected = True
         self.active = True
-        self.env.process(self.run_contagion())
+        self.process(self.run_contagion())
         return True
 
     def run_contagion(self):
@@ -355,8 +360,8 @@ cdef class Person:
         yield self.timeout(self.incubation_time)
         self.in_incubation = False
         self.contagious = True
-        self.env.process(self.run_contagion_home())
-        self.env.process(self.run_contagion_street()) 
+        self.process(self.run_contagion_home())
+        self.process(self.run_contagion_street())
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
         self.configure_evolution()
@@ -380,55 +385,55 @@ cdef class Person:
     cdef configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
         time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
-        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        self.process(self.run_hospitalization(time_until_hospitalization))
         time_until_icu_and_ventilation = time_until_outcome * 0.47  # 8 dias na ventilacao
-        self.env.process(self.run_ventilation(time_until_icu_and_ventilation))
-        self.env.process(self.run_death(time_until_outcome))
+        self.process(self.run_ventilation(time_until_icu_and_ventilation))
+        self.process(self.run_death(time_until_outcome))
 
     cdef configure_evolution_ventilation(self):
         time_until_outcome = np.random.weibull(2) * 36  # 32 dias
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
-        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        self.process(self.run_hospitalization(time_until_hospitalization))
         time_until_icu_and_ventilation = time_until_outcome * 0.2627  # 8 dias
-        self.env.process(self.run_ventilation(time_until_icu_and_ventilation))
+        self.process(self.run_ventilation(time_until_icu_and_ventilation))
         time_until_icu_without_ventilation = time_until_outcome * 0.5113  # 16 dias
-        self.env.process(self.run_leave_ventilation(time_until_icu_without_ventilation))
+        self.process(self.run_leave_ventilation(time_until_icu_without_ventilation))
         time_until_icu_ends = time_until_outcome * 0.7125  # 22 dias
-        self.env.process(self.run_leave_icu(time_until_icu_ends))
-        self.env.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_leave_icu(time_until_icu_ends))
+        self.process(self.run_leave_hospital(time_until_outcome))
 
     cdef configure_evolution_icu(self):
         time_until_outcome = np.random.weibull(2) * 34  # 30 dias 
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
-        self.env.process(self.run_hospitalization(time_until_hospitalization))
+        self.process(self.run_hospitalization(time_until_hospitalization))
         time_until_icu = time_until_outcome * 0.266  # 8 dias
-        self.env.process(self.run_enter_icu(time_until_icu))
+        self.process(self.run_enter_icu(time_until_icu))
         time_until_icu_ends = time_until_outcome * 0.717  # 20 dias
-        self.env.process(self.run_leave_icu(time_until_icu_ends))
-        self.env.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_leave_icu(time_until_icu_ends))
+        self.process(self.run_leave_hospital(time_until_outcome))
 
     cdef configure_evolution_hospitalization(self):
         time_until_outcome = np.random.weibull(
             self.sim_consts.time_to_outcome_severe_shape) * self.sim_consts.time_to_outcome_severe_scale
         time_until_hospitalization = time_until_outcome * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
-        self.env.process(self.run_hospitalization(time_until_hospitalization))
-        self.env.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_hospitalization(time_until_hospitalization))
+        self.process(self.run_leave_hospital(time_until_outcome))
 
     cdef configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
-        self.env.process(self.run_cure(time_until_outcome))
+        self.process(self.run_cure(time_until_outcome))
         self.request_diagnosis()
 
     cdef configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
-        self.env.process(self.run_cure(time_until_outcome))
+        self.process(self.run_cure(time_until_outcome))
     
     cdef request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
             self.senv.lab.request_exam(1, self)
         else:
-            self.env.process(self.wait_for_diagnosis(diagnosis_delay))
+            self.process(self.wait_for_diagnosis(diagnosis_delay))
 
     def wait_for_diagnosis(self, float diagnosis_delay):
         cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
@@ -440,7 +445,7 @@ cdef class Person:
         if self.dead:
             return
         if self.senv.simulate_capacity:
-            self.env.process(self.request_attention())
+            self.process(self.request_attention())
             yield from self.request_hospital_bed()
         else:
             self.hospitalized = True
@@ -523,8 +528,8 @@ cdef class Person:
         if self.dead:
             return
         if self.senv.simulate_capacity:
-            self.env.process(self.request_icu())
-            self.env.process(self.request_ventilator())
+            self.process(self.request_icu())
+            self.process(self.request_ventilator())
         else:
             self.in_ventilator = True
             self.in_icu = True
@@ -641,7 +646,7 @@ cdef class Person:
 
     cdef setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
-            self.env.process(self.run_remove_immunization())
+            self.process(self.run_remove_immunization())
 
     def run_remove_immunization(self):
         immunization_timeout = np.random.exponential(self.sim_consts.immunization_period)
