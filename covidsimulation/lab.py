@@ -1,6 +1,8 @@
-import numpy as np
+from dataclasses import dataclass
 from queue import PriorityQueue
 
+import numpy as np
+import simpy
 
 INITIAL_CAPACITY = 200
 MAXIMUM_QUEUE_SIZE_FACTOR = 5
@@ -9,37 +11,49 @@ INFLUENZA_EXAM_DEMAND = 100
 PRIORITY_INFLUENZA_EXAM_ODDS = 0.3
 
 
-def influenza_exams_demand(env):
-    while True:
-        yield env.timeout(1.0 / (INFLUENZA_EXAM_DEMAND * env.scaling))
-        priority = 0.0 if np.random.random() < PRIORITY_INFLUENZA_EXAM_ODDS else 1.0
-        env.request_exam(priority, None)
+@dataclass
+class Lab:
+    queue: PriorityQueue
+    capacity: float
+    env: simpy.Environment
+    scaling: float
+    requested_exams: int = 0
+    positive_exams: int = 0
 
-
-def laboratory(env):
-    env.lab_queue = PriorityQueue()
-    env.lab_capacity = INITIAL_CAPACITY
-    env.requested_exams = 0
-    env.positive_exams = 0
-
-    def request_exam(priority, person=None):
-        env.requested_exams += 1
+    def request_exam(self, priority, person=None):
+        self.requested_exams += 1
         priority = priority + np.random.random() / 2.0
-        if env.lab_queue.qsize() > (env.lab_capacity) * (MAXIMUM_QUEUE_SIZE_FACTOR - priority):
+        if self.queue.qsize() > (self.capacity) * (MAXIMUM_QUEUE_SIZE_FACTOR - priority):
             return  # Give up on the exam
-        env.lab_queue.put((priority, person))
+        self.queue.put((priority, person))
 
-    env.request_exam = request_exam
+    def run(self):
+        while True:
+            yield self.env.timeout(1.0 / self.capacity)
+            if self.queue.empty():
+                continue
+            _, test = self.queue.get()
+            if test:
+                test.diagnosed = True
+                test.diagnosis_date = self.env.now
+                self.positive_exams += 1
 
-    env.process(influenza_exams_demand(env))
 
+def influenza_exams_demand(lab: Lab):
     while True:
-        capacity = env.lab_capacity * env.scaling
-        yield env.timeout(1.0 / env.lab_capacity)
-        if env.lab_queue.empty():
-            continue
-        _, test = env.lab_queue.get()
-        if test:
-            test.diagnosed = True
-            test.diagnosis_date = env.now
-            env.positive_exams += 1
+        yield lab.env.timeout(1.0 / (INFLUENZA_EXAM_DEMAND * lab.scaling))
+        priority = 0.0 if np.random.random() < PRIORITY_INFLUENZA_EXAM_ODDS else 1.0
+        lab.request_exam(priority, None)
+
+
+def laboratory(env: simpy.Environment, scaling: float) -> Lab:
+    lab = Lab(
+        queue=PriorityQueue(),
+        capacity=INITIAL_CAPACITY,
+        env=env,
+        scaling=scaling,
+    )
+
+    env.process(influenza_exams_demand(lab))
+    env.process(lab.run())
+    return lab
