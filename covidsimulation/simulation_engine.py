@@ -68,6 +68,8 @@ def get_population(senv: SimulationEnvironment, population_params: Population) -
         people.extend(generate_people_in_new_house(senv, population_params))
     for _ in range(initially_infected):
         set_initial_infection(senv.sim_params, people)
+    if senv.creation_queue:
+        senv.creation_queue.put(len(people))
     return people
 
 
