@@ -3,14 +3,14 @@
 
 # Copyright 2020 André Arroyo and contributors
 # 
-# Redistribicuon and use in source and binary forms, with or without modification, are permitted
+# Redistribution and use in source and binary forms, with or without modification, are permitted
 # provided that the following conditions are met:
 # 
-# 1. Redistribicuons of source code must retain the above copyright notice, this list of conditions
+# 1. Redistributions of source code must retain the above copyright notice, this list of conditions
 # and the following disclaimer.
 # 
-# 2. Redistribicuons in binary form must reproduce the above copyright notice, this list of conditions
-# and the following disclaimer in the documentation and/or other materials provided with the distribicuon.
+# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+# and the following disclaimer in the documentation and/or other materials provided with the distribution.
 # 
 # 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or
 # promote products derived from this software without specific prior written permission.
@@ -98,7 +98,7 @@ def seed(unsigned i):
 
 
 cpdef logit_transform_value(double p, double adjustment_logit):
-    """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribicuon curve by adjustment_logit 
+    """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribution curve by adjustment_logit 
     """
     cdef double odds = p / (1.0 - p)
     cdef float logit = clog(odds)
@@ -358,7 +358,7 @@ cdef class Person:
             self.configure_evolution_hospitalization()
         elif self.expected_outcome == Outcome.MODERATE:
             self.configure_evolution_moderate_at_home()
-        elif self.expected_outcome == Outcome.MILD:
+        else:
             self.configure_evolution_mild_at_home()
 
     cdef configure_evolution_death(self):
@@ -392,15 +392,15 @@ cdef class Person:
         self.env.process(self.run_leave_hospital(time_until_outcome))
 
     cdef configure_evolution_hospitalization(self):
-        time_until_outcome = np.random.weibull(2) * 33  # 29 dias  
-        time_until_hospitalization = time_until_outcome * 0.25  # 7 dias
+        time_until_outcome = np.random.weibull(
+            self.sim_consts.time_to_outcome_severe_shape) * self.sim_consts.time_to_outcome_severe_scale
+        time_until_hospitalization = time_until_outcome * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
         self.env.process(self.run_hospitalization(time_until_hospitalization))
         self.env.process(self.run_leave_hospital(time_until_outcome))
 
     cdef configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
-        self.env.request_exam(1, self)
         self.request_diagnosis()
 
     cdef configure_evolution_mild_at_home(self):
@@ -410,7 +410,7 @@ cdef class Person:
     def request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
-            self.env.solicitar_exame(0, self)
+            self.env.request_exam(1, self)
         else:
             self.env.process(self.wait_for_diagnosis(diagnosis_delay))
 
@@ -429,7 +429,7 @@ cdef class Person:
         else:
             self.hospitalized = True
             self.hospitalization_date = self.env.now
-            self.env.request_exam(0, self)
+            self.request_diagnosis()
   
     def request_attention(self):
         attention_req = self.env.attention.request(Outcome.DEATH - self.expected_outcome)
@@ -724,7 +724,7 @@ MEASUREMENTS = [
     'susceptible',
     'in_hospital_bed',
     'confirmed_in_intensive_care',
-    'confirmed_inpatients'
+    'confirmed_inpatients',
 ]
 
 
