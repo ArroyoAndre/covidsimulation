@@ -70,6 +70,16 @@ age_str = [
 ]
 
 
+cdef extern from *:
+    """
+    /* This is C code which will be put
+     * in the .c file output by Cython */
+    long c_mod(long x, int m) {return x % m;}
+    """
+    long c_mod(long x, int m)
+
+
+
 cdef int get_outcome(np.ndarray severity):
     cdef double p = (rand() / (RAND_MAX + 1.0))
     if p > severity[0]:
@@ -133,7 +143,7 @@ cdef _choice(list arr, size_t sample_size):
 
 
 cdef choose_contact_on_street(object person, object people, size_t sample_size=LOCALITY):
-    cdef bool intra_ages = not (rand() % 2)
+    cdef bool intra_ages = c_mod(rand(), 2) != 0
     if intra_ages:
         sample_size *= 2
     sample = _choice(people, sample_size)  
@@ -142,7 +152,7 @@ cdef choose_contact_on_street(object person, object people, size_t sample_size=L
     cdef float py = person.home.coords[1]
     cdef float pz = person.home.coords[2]
     cdef float index = person.age_group.index
-    cdef bool find_non_isolated_person = (rand() % 2)
+    cdef bool find_non_isolated_person = c_mod(rand(), 2)
     for i, individual in enumerate(sample):
         icoords = individual.home.coords
         distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
@@ -248,6 +258,7 @@ cdef class Person:
     cdef object env  # simpy Environment
     cdef object timeout  # simpy environment timeout
     cdef public object age_group
+    cdef Py_ssize_t age_group_index
     cdef SimulationConstants sim_consts
     cdef public float isolation_propensity
     cdef size_t expected_outcome
@@ -310,6 +321,7 @@ cdef class Person:
         self.icu_req = None
         self.ventilator_req = None
         self.age_group = age_group
+        self.age_group_index = age_group.index
         self.isolation_propensity = self.get_isolation_propensity()
         self.expected_outcome = get_outcome(self.age_group.severity)
         home.add_person(self)
@@ -411,7 +423,7 @@ cdef class Person:
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
         self.env.process(self.run_cure(time_until_outcome))
     
-    def request_diagnosis(self):
+    cdef request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
             self.senv.lab.request_exam(1, self)
@@ -600,7 +612,7 @@ cdef class Person:
             self.infect_in_home()
             yield self.timeout(1.0)
 
-    def infect_in_home(self):
+    cdef infect_in_home(self):
         for person in self.home.residents:
             if not (person is self):
                 if np.random.random() < self.sim_consts.home_contamination_daily_probability:
@@ -608,7 +620,7 @@ cdef class Person:
                     if transmitted:
                         self.transmitted += 1
 
-    def test_isolation(self):
+    cdef test_isolation(self):
         return self.in_isolation and np.random.random() < self.age_group.isolation_effectiveness
 
     def run_contagion_street(self):
@@ -627,7 +639,7 @@ cdef class Person:
                 np.random.exponential(self.senv.randomness.expositions_interval)
             )
 
-    def setup_remove_immunization(self):
+    cdef setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
             self.env.process(self.run_remove_immunization())
 
@@ -734,19 +746,23 @@ MEASUREMENTS = [
 
 cdef _log_stats(size_t day, np.ndarray stats, object populations):
     global fmetrics
-    stop = len(fmetrics)
-    cdef int age_index
-    cdef size_t i
+    cdef Py_ssize_t stop = len(fmetrics)
+    cdef Py_ssize_t age_index
+    cdef Py_ssize_t i
     cdef int value
-    
+    cdef double[:, :, :, :] stats_view = stats
+    cdef Py_ssize_t population_index
+    cdef Py_ssize_t metric_index
+    cdef Person person
+
     for population_index, people in enumerate(populations.values()):
         for person in people:
-            age_index = person.age_group.index
+            age_index = person.age_group_index
             metric_index = 0
             while metric_index < stop:
                 value = fmetrics[metric_index](person)
                 if value:
-                    stats[population_index, metric_index, age_index, day] += value
+                    stats_view[population_index, metric_index, age_index, day] += value
                 metric_index += 1
 
                 
