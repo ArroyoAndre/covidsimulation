@@ -132,7 +132,8 @@ params = Parameters(
     capacity_hospital_beds=20000,
     capacity_icu=4000,
     capacity_ventilators=4000,
-    transmission_scale_days=0.3,
+    street_transmission_scale_days=0.6,
+    social_group_transmission_scale_days=0.6,
     min_age_group_initially_infected=4,
 )
 

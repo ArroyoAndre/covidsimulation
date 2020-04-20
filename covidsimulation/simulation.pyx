@@ -157,26 +157,39 @@ cdef _choice(list arr, size_t sample_size):
 
 
 cdef choose_contact_on_street(object person, object people, size_t sample_size=LOCALITY):
-    cdef bool intra_ages = c_mod(rand(), 2) != 0
-    if intra_ages:
-        sample_size *= 2
     sample = _choice(people, sample_size)  
     distances = np.zeros([sample_size])
     cdef float px = person.home.coords[0]
     cdef float py = person.home.coords[1]
     cdef float pz = person.home.coords[2]
     cdef float index = person.age_group.index
-    cdef bool find_non_isolated_person = c_mod(rand(), 2)
+    cdef float[3] icoords
     for i, individual in enumerate(sample):
         icoords = individual.home.coords
         distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
-    if intra_ages:
+    chosen = sample[np.argmin(distances)]
+    return chosen
+
+
+cdef choose_contact_from_social_group(object person, object people, size_t sample_size=LOCALITY*2):
+    sample = _choice(people, sample_size)  
+    distances = np.zeros([sample_size])
+    cdef float px = person.home.coords[0]
+    cdef float py = person.home.coords[1]
+    cdef float pz = person.home.coords[2]
+    cdef float index = person.age_group.index
+    cdef bint find_non_isolated_person = c_mod(rand(), 2)
+    cdef float[3] icoords
+    for i, individual in enumerate(sample):
+        icoords = individual.home.coords
+        distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
         if individual.age_group.index != index:
             distances[i] += 1.0
         if find_non_isolated_person and individual.in_isolation:
             distances[i] += 1.0            
     chosen = sample[np.argmin(distances)]
     return chosen
+
 
 ###
 ## SimulationConstants and defaults
@@ -376,6 +389,7 @@ cdef class Person:
         self.contagious = True
         self.process(self.run_contagion_home())
         self.process(self.run_contagion_street())
+        self.process(self.run_contagion_social_group())
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
         self.configure_evolution()
@@ -645,7 +659,7 @@ cdef class Person:
     def run_contagion_street(self):
         cdef Person contact_on_street
         yield self.timeout(
-            np.random.exponential(self.senv.randomness.expositions_interval)
+            np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
             if not self.test_isolation():
@@ -655,8 +669,25 @@ cdef class Person:
                     if contact_on_street.expose_to_virus():
                         self.transmitted += 1
             yield self.timeout(
-                np.random.exponential(self.senv.randomness.expositions_interval)
+                np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
+
+    def run_contagion_social_group(self):
+        cdef Person contact_on_group
+        yield self.timeout(
+            np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+            )
+        while self.contagious and not self.hospitalized:
+            if not self.test_isolation():
+                contact_on_group = choose_contact_from_social_group(self, self.senv.people)
+                if contact_on_group.susceptible and not (contact_on_group.test_isolation() 
+                                                          or contact_on_group.hospitalized):
+                    if contact_on_group.expose_to_virus():
+                        self.transmitted += 1
+            yield self.timeout(
+                np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+            )
+
 
     cdef setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
