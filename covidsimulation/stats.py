@@ -127,7 +127,7 @@ class Stats:
             stats_i = copy(self)
             stats_i.filter_indices = [i]
             scores.append(scoring_fn(stats_i))
-        sorted_indices = np.argmin(np.array(scores))
+        sorted_indices = np.argsort(np.array(scores))
         num_best = self.stats.shape[0] - int((1.0 - fraction_to_keep) * self.stats.shape[0])
         self.filter_indices = sorted_indices[:num_best]
 
