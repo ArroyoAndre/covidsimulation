@@ -16,7 +16,7 @@ from .stats import Stats
 from .simulation_environment import SimulationEnvironment, SimulationRandomness
 from .metrics import METRICS
 
-SIMULATION_ENGINE_VERSION = '0.0.1'
+SIMULATION_ENGINE_VERSION = '0.0.2'
 
 
 def get_stats_matrix(populations: Dict, duration):

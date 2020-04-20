@@ -22,7 +22,8 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from typing import List, Tuple, Dict, Iterable
+from copy import copy
+from typing import List, Tuple, Dict, Iterable, Optional, Callable
 import numpy as np
 from pathlib import Path
 import pickle
@@ -40,6 +41,7 @@ class Stats:
     population_names: Iterable[str]
     age_str: List[str]
     start_date: str
+    filter_indices: Optional[Iterable]
 
     def __init__(
             self,
@@ -49,6 +51,7 @@ class Stats:
             population_names: List[str],
             age_str: List[str],
             start_date: str = DEFAULT_START_DATE,
+            filter_indices: Optional[Iterable] = None,
     ):
         self.stats = stats
         self.measurements = measurements
@@ -56,6 +59,7 @@ class Stats:
         self.population_names = population_names
         self.age_str = age_str
         self.start_date = start_date
+        self.filter_indices = filter_indices
 
     def _get_estatistica(self, indice_metrica, nome_populacao, nome_faixa):
         if nome_populacao:
@@ -70,15 +74,7 @@ class Stats:
             stats_faixa = stats_populacao.sum(1)
         return stats_faixa
 
-    def get_metric(
-            self,
-            nome_metrica,
-            nome_populacao=None,
-            nome_faixa=None,
-            fatores=None,
-            diaria=False,
-            confidence_range=CONFIDENCE_RANGE,
-    ):
+    def _get_metric_raw(self, nome_metrica, nome_populacao, nome_faixa, fatores, diaria):
         numerator_name, denominator_name = self.metrics[nome_metrica]
         indice_metrica = get_index(numerator_name, self.measurements)
         estatistica = self._get_estatistica(indice_metrica, nome_populacao, nome_faixa)
@@ -90,11 +86,25 @@ class Stats:
             estatistica *= fatores
         if diaria:
             estatistica = estatistica[:, 1:] - estatistica[:, :-1]
+        return estatistica
+
+    def get_metric(
+            self,
+            nome_metrica,
+            nome_populacao=None,
+            nome_faixa=None,
+            fatores=None,
+            diaria=False,
+            confidence_range=CONFIDENCE_RANGE,
+    ):
+        metric = self._get_metric_raw(nome_metrica, nome_populacao, nome_faixa, fatores, diaria)
+        if self.filter_indices is not None:
+            metric = metric[self.filter_indices, :]
         return (
             self,
-            estatistica.mean(0),
-            np.percentile(estatistica, confidence_range[0], axis=0),
-            np.percentile(estatistica, confidence_range[1], axis=0),
+            metric.mean(0),
+            np.percentile(metric, confidence_range[0], axis=0),
+            np.percentile(metric, confidence_range[1], axis=0),
         )
 
     def save(self, fname):
@@ -110,6 +120,16 @@ class Stats:
             fname = fname + '.pkl'
         with open(fname, 'rb') as f:
             return pickle.load(f)
+
+    def filter_best_scores(self, scoring_fn: Callable, fraction_to_keep: float = 0.1):
+        scores = []
+        for i in range(self.stats.shape[0]):
+            stats_i = copy(self)
+            stats_i.filter_indices = [i]
+            scores.append(scoring_fn(stats_i))
+        sorted_indices = np.argsort(np.array(scores))
+        num_best = self.stats.shape[0] - int((1.0 - fraction_to_keep) * self.stats.shape[0])
+        self.filter_indices = sorted_indices[:num_best]
 
 
 def get_index(key, keys):
