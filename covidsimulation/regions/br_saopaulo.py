@@ -1,6 +1,9 @@
+from functools import partial
+
 import numpy as np
 
 from ..age_group import AgeGroup
+from ..callibrate import score_reported_deaths
 from ..disease_parameters import OUTCOME_THRESHOLDS
 from ..intervention import SocialDistancingChange, DiagnosisDelayChange
 from ..parameters import Parameters
@@ -153,3 +156,5 @@ sp_official_deaths = [
     (34, 728.0),  # 2020-04-16
     (35, 783.0),  # 2020-04-17
 ]
+
+score_fn = partial(score_reported_deaths, expected_deaths=sp_official_deaths)
