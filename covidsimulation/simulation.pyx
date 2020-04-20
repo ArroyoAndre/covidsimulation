@@ -131,6 +131,7 @@ def choice(arr, sample_size):
 
 def p_choice(np.ndarray p):
     """
+    Return a random index from an array of probability weights. Much faster than np.random.choice.
     p: numpy.ndarray - Probabilities of each class. Must sum to 1.0.
     """
     cdef double total = 0
