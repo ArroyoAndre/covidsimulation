@@ -678,16 +678,15 @@ cdef class Person:
             np.random.exponential(self.senv.randomness.social_group_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
-            if not self.test_isolation():
+            if not self.in_isolation:
                 contact_on_group = choose_contact_from_social_group(self, self.senv.people)
-                if contact_on_group.susceptible and not (contact_on_group.test_isolation() 
+                if contact_on_group.susceptible and not (contact_on_group.in_isolation 
                                                           or contact_on_group.hospitalized):
                     if contact_on_group.expose_to_virus():
                         self.transmitted += 1
             yield self.timeout(
                 np.random.exponential(self.senv.randomness.social_group_expositions_interval)
             )
-
 
     cdef setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
