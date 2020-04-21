@@ -172,8 +172,8 @@ def get_simulation_randomness(sim_params: Parameters):
         severity_deviation=(np.random.random() + np.random.random() - 1.0) * 0.2,
         severity_bias=(np.random.random() - 0.5) * 0.2,
         isolation_deviation=np.random.random(),  # uncertainty regarding isolation effectiveness
-        street_expositions_interval=sim_params.street_transmission_scale_days + (np.random.random() - 1.0) * 0.1,
-        social_group_expositions_interval=sim_params.social_group_transmission_scale_days + (np.random.random() - 1.0) * 0.1,
+        street_expositions_interval=sim_params.street_transmission_scale_days + (np.random.random() - 0.5) * 0.2,
+        social_group_expositions_interval=sim_params.social_group_transmission_scale_days + (np.random.random() - 0.5) * 0.2,
     )
 
 
