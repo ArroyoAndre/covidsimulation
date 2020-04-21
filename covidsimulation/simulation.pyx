@@ -672,8 +672,8 @@ cdef class Person:
         Test if a person's mask usage can prevent transmission
         """
         if self.masks_usage:
-            if self.masks_usage < get_uniform():  # mask was being used
-                if self.age_group.mask_transmission_reduction < get_uniform():  # mask was effective
+            if self.masks_usage > get_uniform():  # mask was being used
+                if self.age_group.mask_transmission_reduction > get_uniform():  # mask was effective
                     return 0
         return 1
 
@@ -682,8 +682,8 @@ cdef class Person:
         Test if a person's mask usage can avoid infection
         """
         if self.masks_usage:
-            if self.masks_usage < get_uniform():  # mask was being used
-                if self.age_group.mask_infection_reduction < get_uniform():  # mask was effective
+            if self.masks_usage > get_uniform():  # mask was being used
+                if self.age_group.mask_infection_reduction > get_uniform():  # mask was effective
                     return 0
         return 1
 
@@ -692,8 +692,8 @@ cdef class Person:
         Test if a person's hygiene measures can avoid infection
         """
         if self.hygiene_adoption:
-            if self.hygiene_adoption < get_uniform():  # hygiene was being practicised
-                if self.age_group.hygiene_infection_reduction < get_uniform():  # hygiene was effective
+            if self.hygiene_adoption > get_uniform():  # hygiene was being practicised
+                if self.age_group.hygiene_infection_reduction > get_uniform():  # hygiene was effective
                     return 0
         return 1
 
