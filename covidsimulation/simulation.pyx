@@ -662,9 +662,15 @@ cdef class Person:
                         self.transmitted += 1
 
     cdef bint test_isolation(self):
+        """
+        Test if a person's isolation can avoid a transmission and/or infection situation
+        """
         return self.in_isolation and get_uniform() < self.age_group.isolation_effectiveness
 
     cdef bint test_mask_transmission(self):
+        """
+        Test if a person's mask usage can prevent transmission
+        """
         if self.masks_usage:
             if self.masks_usage < get_uniform():  # mask was being used
                 if self.age_group.mask_transmission_reduction < get_uniform():  # mask was effective
@@ -672,36 +678,63 @@ cdef class Person:
         return 1
 
     cdef bint test_mask_infection(self):
+        """
+        Test if a person's mask usage can avoid infection
+        """
         if self.masks_usage:
             if self.masks_usage < get_uniform():  # mask was being used
                 if self.age_group.mask_infection_reduction < get_uniform():  # mask was effective
                     return 0
         return 1
 
+    cdef bint test_hygiene_infection(self):
+        """
+        Test if a person's hygiene measures can avoid infection
+        """
+        if self.hygiene_adoption:
+            if self.hygiene_adoption < get_uniform():  # hygiene was being practicised
+                if self.age_group.hygiene_infection_reduction < get_uniform():  # hygiene was effective
+                    return 0
+        return 1
+
     cdef bint test_street_transmission(self):
+        """
+        Test if a person can transmit to others in the street, given person's containment measures
+        """
         return (
             (not self.test_isolation()) 
             and self.test_mask_transmission()
         )
 
     cdef bint test_street_infection(self):
+        """
+        Test if a person can be infected in the street, given person's containment measures
+        """
         return (
             self.susceptible 
             and (not self.test_isolation()) 
             and self.test_mask_infection()
+            and self.test_hygiene_infection()
         )
 
     cdef bint test_social_group_transmission(self):
+        """
+        Test if a person can transmit to others in its social group, given person's containment measures
+        """
         return (
             (not self.in_isolation) 
             and self.test_mask_transmission()
         )
 
     cdef bint test_social_group_infection(self):
+        """
+        Test if a person can be infected in its social group, given person's containment measures
+        """
         return (
             self.susceptible
             and (not self.in_isolation) 
             and self.test_mask_infection()
+            and self.test_hygiene_infection()
         )
 
     def run_contagion_street(self):

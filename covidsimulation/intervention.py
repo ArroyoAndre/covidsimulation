@@ -54,7 +54,21 @@ class MaskUsage(Intervention):
                 person_average_adherence = average_adherence * person.age_group.masks_max_adherence
                 person.masks_usage = np.random.beta(
                     person_average_adherence * person.age_group.masks_adherence_shape,
-                    1.0 - person_average_adherence * person.age_group.masks_adherence_shape,
+                    (1.0 - person_average_adherence) * person.age_group.masks_adherence_shape,
                 )
             else:
                 person.masks_usage = 0.0
+
+class HygieneAdoption(Intervention):
+
+    def apply(self, senv: SimulationEnvironment) -> None:
+        average_adherence = self.parameter
+        for person in senv.people:
+            if average_adherence:
+                person_average_adherence = average_adherence * person.age_group.hygiene_max_adherence
+                person.hygiene_adoption = np.random.beta(
+                    person_average_adherence * person.age_group.hygiene_shape,
+                    (1.0 - person_average_adherence) * person.age_group.hygiene_shape,
+                )
+            else:
+                person.hygiene_adoption = 0.0
