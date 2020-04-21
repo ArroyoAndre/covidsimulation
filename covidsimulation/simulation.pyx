@@ -107,7 +107,7 @@ def seed(unsigned i):
     srand(i)
 
 
-cpdef logit_transform_value(double p, double adjustment_logit):
+cpdef double logit_transform_value(double p, double adjustment_logit):
     """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribution curve by adjustment_logit 
     """
     cdef double odds = p / (1.0 - p)
@@ -118,10 +118,14 @@ cpdef logit_transform_value(double p, double adjustment_logit):
     return corrected_p
 
 
-cdef sample_from_logit_uniform(double adjustment_logit):
+cdef double get_uniform():
+    return (rand() + 1.0) / (RAND_MAX + 2.0)
+
+
+cdef double sample_from_logit_uniform(double adjustment_logit):
     cdef double p = 1.0
     while not (0.0 < p < 1.0):
-        p = (rand() + 1.0) / (RAND_MAX + 2.0)
+        p = get_uniform()
     return logit_transform_value(p, adjustment_logit)
 
 
@@ -307,6 +311,8 @@ cdef class Person:
     cdef public float hospitalization_date
     cdef public float death_date
     cdef public float recovery_date
+    cdef public float masks_usage
+    cdef public float hygiene_adoption
     cdef public size_t transmitted
     cdef public bool in_hospital_bed
     cdef public bool in_icu
@@ -340,6 +346,8 @@ cdef class Person:
         self.hospitalization_date = 0.0
         self.death_date = 0.0
         self.recovery_date = 0.0
+        self.masks_usage = 0.0
+        self.hygiene_adoption = 0.0
         self.transmitted = 0
         self.in_hospital_bed = False
         self.in_icu = False
@@ -355,10 +363,10 @@ cdef class Person:
         self.expected_outcome = 0
         home.add_person(self)
 
-    cdef get_isolation_propensity(self):
+    cdef double get_isolation_propensity(self):
         return sample_from_logit_uniform(self.age_group.isolation_adherence)
 
-    cdef calculate_case_params(self):
+    cdef void calculate_case_params(self):
         self.time_until_symptoms = np.random.weibull(
             self.sim_consts.symptoms_delay_shape
             ) * self.sim_consts.symptoms_delay_scale
@@ -396,7 +404,7 @@ cdef class Person:
         yield self.timeout(contagion_duration)
         self.contagious = False
 
-    cdef configure_evolution(self):
+    cdef void configure_evolution(self):
         if self.expected_outcome == Outcome.DEATH:
             self.configure_evolution_death()
         elif self.expected_outcome == Outcome.VENTILATION:
@@ -410,7 +418,7 @@ cdef class Person:
         else:
             self.configure_evolution_mild_at_home()
 
-    cdef configure_evolution_death(self):
+    cdef void configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
         time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -418,7 +426,7 @@ cdef class Person:
         self.process(self.run_ventilation(time_until_icu_and_ventilation))
         self.process(self.run_death(time_until_outcome))
 
-    cdef configure_evolution_ventilation(self):
+    cdef void configure_evolution_ventilation(self):
         time_until_outcome = np.random.weibull(2) * 36  # 32 dias
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -430,7 +438,7 @@ cdef class Person:
         self.process(self.run_leave_icu(time_until_icu_ends))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_icu(self):
+    cdef void configure_evolution_icu(self):
         time_until_outcome = np.random.weibull(2) * 34  # 30 dias 
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -440,23 +448,23 @@ cdef class Person:
         self.process(self.run_leave_icu(time_until_icu_ends))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_hospitalization(self):
+    cdef void configure_evolution_hospitalization(self):
         time_until_outcome = np.random.weibull(
             self.sim_consts.time_to_outcome_severe_shape) * self.sim_consts.time_to_outcome_severe_scale
         time_until_hospitalization = time_until_outcome * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_moderate_at_home(self):
+    cdef void configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.process(self.run_cure(time_until_outcome))
         self.request_diagnosis()
 
-    cdef configure_evolution_mild_at_home(self):
+    cdef void configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
         self.process(self.run_cure(time_until_outcome))
     
-    cdef request_diagnosis(self):
+    cdef void request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
             self.senv.lab.request_exam(1, self)
@@ -648,13 +656,53 @@ cdef class Person:
     cdef infect_in_home(self):
         for person in self.home.residents:
             if not (person is self):
-                if np.random.random() < self.sim_consts.home_contamination_daily_probability:
+                if get_uniform() < self.sim_consts.home_contamination_daily_probability:
                     transmitted = person.expose_to_virus()
                     if transmitted:
                         self.transmitted += 1
 
-    cdef test_isolation(self):
-        return self.in_isolation and np.random.random() < self.age_group.isolation_effectiveness
+    cdef bint test_isolation(self):
+        return self.in_isolation and get_uniform() < self.age_group.isolation_effectiveness
+
+    cdef bint test_mask_transmission(self):
+        if self.masks_usage:
+            if self.masks_usage < get_uniform():  # mask was being used
+                if self.age_group.mask_transmission_reduction < get_uniform():  # mask was effective
+                    return 0
+        return 1
+
+    cdef bint test_mask_infection(self):
+        if self.masks_usage:
+            if self.masks_usage < get_uniform():  # mask was being used
+                if self.age_group.mask_infection_reduction < get_uniform():  # mask was effective
+                    return 0
+        return 1
+
+    cdef bint test_street_transmission(self):
+        return (
+            (not self.test_isolation()) 
+            and self.test_mask_transmission()
+        )
+
+    cdef bint test_street_infection(self):
+        return (
+            self.susceptible 
+            and (not self.test_isolation()) 
+            and self.test_mask_infection()
+        )
+
+    cdef bint test_social_group_transmission(self):
+        return (
+            (not self.in_isolation) 
+            and self.test_mask_transmission()
+        )
+
+    cdef bint test_social_group_infection(self):
+        return (
+            self.susceptible
+            and (not self.in_isolation) 
+            and self.test_mask_infection()
+        )
 
     def run_contagion_street(self):
         cdef Person contact_on_street
@@ -662,10 +710,9 @@ cdef class Person:
             np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
-            if not self.test_isolation():
+            if self.test_street_transmission():
                 contact_on_street = choose_contact_on_street(self, self.senv.people)
-                if contact_on_street.susceptible and not (contact_on_street.test_isolation() 
-                                                          or contact_on_street.hospitalized):
+                if contact_on_street.test_street_infection():
                     if contact_on_street.expose_to_virus():
                         self.transmitted += 1
             yield self.timeout(
@@ -678,17 +725,16 @@ cdef class Person:
             np.random.exponential(self.senv.randomness.social_group_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
-            if not self.in_isolation:
+            if self.test_social_group_transmission():
                 contact_on_group = choose_contact_from_social_group(self, self.senv.people)
-                if contact_on_group.susceptible and not (contact_on_group.in_isolation 
-                                                          or contact_on_group.hospitalized):
+                if contact_on_group.test_social_group_infection():
                     if contact_on_group.expose_to_virus():
                         self.transmitted += 1
             yield self.timeout(
                 np.random.exponential(self.senv.randomness.social_group_expositions_interval)
             )
 
-    cdef setup_remove_immunization(self):
+    cdef void setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
             self.process(self.run_remove_immunization())
 
