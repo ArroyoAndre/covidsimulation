@@ -313,7 +313,7 @@ cdef class Person:
     cdef public float recovery_date
     cdef public float masks_usage
     cdef public float hygiene_adoption
-    cdef public size_t transmitted
+    cdef public size_t transmited
     cdef public bool in_hospital_bed
     cdef public bool in_icu
     cdef public bool in_ventilator
@@ -348,7 +348,7 @@ cdef class Person:
         self.recovery_date = 0.0
         self.masks_usage = 0.0
         self.hygiene_adoption = 0.0
-        self.transmitted = 0
+        self.transmited = 0
         self.in_hospital_bed = False
         self.in_icu = False
         self.in_ventilator = False
@@ -657,9 +657,9 @@ cdef class Person:
         for person in self.home.residents:
             if not (person is self):
                 if get_uniform() < self.sim_consts.home_contamination_daily_probability:
-                    transmitted = person.expose_to_virus()
-                    if transmitted:
-                        self.transmitted += 1
+                    transmited = person.expose_to_virus()
+                    if transmited:
+                        self.transmited += 1
 
     cdef bint test_isolation(self):
         """
@@ -747,7 +747,7 @@ cdef class Person:
                 contact_on_street = choose_contact_on_street(self, self.senv.people)
                 if contact_on_street.test_street_infection():
                     if contact_on_street.expose_to_virus():
-                        self.transmitted += 1
+                        self.transmited += 1
             yield self.timeout(
                 np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
@@ -762,7 +762,7 @@ cdef class Person:
                 contact_on_group = choose_contact_from_social_group(self, self.senv.people)
                 if contact_on_group.test_social_group_infection():
                     if contact_on_group.expose_to_virus():
-                        self.transmitted += 1
+                        self.transmited += 1
             yield self.timeout(
                 np.random.exponential(self.senv.randomness.social_group_expositions_interval)
             )
@@ -786,49 +786,49 @@ cdef int get_person(Person person):
     return 1
 
 cdef int get_infected(Person person):
-    return person.infected
+    return 1 if person.infected else 0
 
 cdef int get_in_isolation(Person person):
-    return person.in_isolation
+    return 1 if person.in_isolation else 0
 
 cdef int get_diagnosed(Person person):
-    return person.diagnosed
+    return 1 if person.diagnosed else 0
 
 cdef int get_deaths(Person person):
-    return person.dead
+    return 1 if person.dead else 0
 
 cdef int get_confirmed_deaths(Person person):
-    return person.dead and person.diagnosed
+    return 1 if person.dead and person.diagnosed else 0
 
 cdef int get_hospitalized(Person person):
-    return person.hospitalized
+    return 1 if person.hospitalized else 0
 
 cdef int get_in_ventilator(Person person):
-    return person.in_ventilator
+    return 1 if person.in_ventilator else 0
 
 cdef int get_in_icu(Person person):
-    return person.in_icu
+    return 1 if person.in_icu else 0
 
 cdef int get_in_hospital_bed(Person person):
-    return person.in_hospital_bed
+    return 1 if person.in_hospital_bed else 0
 
 cdef int get_contagious(Person person):
-    return person.contagious
+    return 1 if person.contagious else 0
 
 cdef int get_contagion_ended(Person person):
-    return person.infected and not (person.contagious or person.in_incubation)
+    return 1 if person.infected and not (person.contagious or person.in_incubation) else 0
 
 cdef int get_rt(Person person):
-    return person.transmitted if person.infected and not (person.contagious or person.in_incubation) else 0
+    return person.transmited if person.infected and not (person.contagious or person.in_incubation) else 0
 
 cdef int get_susceptible(Person person):
-    return person.susceptible
+    return 1 if person.susceptible else 0
 
 cdef int get_confirmed_inpatients(Person person):
-    return person.hospitalized and person.diagnosed
+    return 1 if person.hospitalized and person.diagnosed else 0
 
 cdef int get_confirmed_in_icu(Person person):
-    return person.in_icu and person.diagnosed
+    return 1 if person.in_icu and person.diagnosed else 0
 
 ctypedef int (*int_from_person)(Person)
 
