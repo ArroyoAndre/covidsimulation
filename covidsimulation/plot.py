@@ -16,7 +16,7 @@ PLOT_COLORS = [
 ]
 
 
-def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start):
+def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, confidence_interval):
     stats, smean, smin, smax = pop_stats
     days = [
         {'mean': x[0], 'min': x[1], 'max': x[2]} for x in zip(smean, smin, smax)
@@ -33,19 +33,20 @@ def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start):
     x_rev = x[::-1]
     x_plot = pd.concat([x, x_rev], ignore_index=True)
     y1 = df['mean']
-    y1_upper = df['max']
-    y1_lower = df['min']
-    y1_lower = y1_lower[::-1]
-    y1_plot = pd.concat([y1_upper, y1_lower], ignore_index=True)
-    fig.add_trace(go.Scatter(
-        x=x_plot,
-        y=y1_plot,
-        fill='toself',
-        fillcolor=PLOT_COLORS[color_index][1],
-        line_color=PLOT_COLORS[color_index][1],
-        showlegend=False,
-        name=pop_name,
-    ))
+    if confidence_interval:
+        y1_upper = df['max']
+        y1_lower = df['min']
+        y1_lower = y1_lower[::-1]
+        y1_plot = pd.concat([y1_upper, y1_lower], ignore_index=True)
+        fig.add_trace(go.Scatter(
+            x=x_plot,
+            y=y1_plot,
+            fill='toself',
+            fillcolor=PLOT_COLORS[color_index][1],
+            line_color=PLOT_COLORS[color_index][1],
+            showlegend=False,
+            name=pop_name,
+        ))
     fig.add_trace(go.Scatter(
         x=x,
         y=y1,
@@ -54,13 +55,14 @@ def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start):
     ))
 
 
-def plot(pop_stats_name_tuples, title, log_scale=False, size=None, stop=None, start=None, ymax=None, cindex=None):
+def plot(pop_stats_name_tuples, title, log_scale=False, size=None, stop=None, start=None, ymax=None, cindex=None,
+         confidence_interval=True):
     fig = go.FigureWidget()
     for color_index, (pop_stats, pop_name) in enumerate(pop_stats_name_tuples):
         color_index = color_index % len(PLOT_COLORS)
         if not cindex is None:
             color_index = cindex
-        get_population_plot(fig, pop_stats, pop_name, color_index, stop, start)
+        get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, confidence_interval)
     fig.update_layout(
         title=title)
     if ymax:
