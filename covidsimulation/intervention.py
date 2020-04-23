@@ -29,9 +29,7 @@ class SocialDistancingChange(Intervention):
 
     def apply(self, senv: SimulationEnvironment) -> None:
         distancing_factor = self.parameter
-        desvio_logit = (senv.randomness.isolation_deviation - 0.5) / 5.0
-        isolation_factor = np.power(distancing_factor, 0.65)
-        senv.isolation_factor = logit_transform_value(isolation_factor, desvio_logit)
+        senv.isolation_factor = logit_transform_value(distancing_factor, senv.randomness.isolation_deviation)
         for person in senv.people:
             person.in_isolation = person.home.isolation_propensity < senv.isolation_factor
 

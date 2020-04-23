@@ -276,8 +276,8 @@ cdef class Home:
     def add_person(self, Person person):
         self.residents.append(person)
         person.home = self
-        self.isolation_propensity = np.array([p.isolation_propensity for p in self.residents]).mean()
-
+        isolation_adherence = np.array([p.age_group.isolation_adherence for p in self.residents]).mean()
+        self.isolation_propensity = sample_from_logit_uniform(isolation_adherence)
 
 ####
 ## Person - an individual being simulated, with all characteristics about the disease
@@ -292,7 +292,6 @@ cdef class Person:
     cdef public object age_group
     cdef Py_ssize_t age_group_index
     cdef SimulationConstants sim_consts
-    cdef public float isolation_propensity
     cdef size_t expected_outcome
     cdef public Home home
 
@@ -359,12 +358,8 @@ cdef class Person:
         self.ventilator_req = None
         self.age_group = age_group
         self.age_group_index = age_group.index
-        self.isolation_propensity = self.get_isolation_propensity()
         self.expected_outcome = 0
         home.add_person(self)
-
-    cdef double get_isolation_propensity(self):
-        return sample_from_logit_uniform(self.age_group.isolation_adherence)
 
     cdef void calculate_case_params(self):
         self.time_until_symptoms = np.random.weibull(
