@@ -139,7 +139,6 @@ def get_best_random_states(
                                    duration=duration,
                                    simulate_capacity=simulate_capacity,
                                    use_cache=use_cache,
-                                   add_noise=False,
                                    creation_queue=creation_queue if tqdm else None,
                                    simulation_queue=simulation_queue if tqdm else None,
                                    )
