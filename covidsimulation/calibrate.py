@@ -16,7 +16,7 @@ LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to 
 # a large portion of observed deviations
 
 
-def callibrate_parameters(
+def calibrate_parameters(
         parameters_to_try: List[Tuple[Callable, Iterable]],
         score_function: Callable,
         sim_params: Parameters,

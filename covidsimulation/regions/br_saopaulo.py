@@ -3,7 +3,7 @@ from functools import partial
 import numpy as np
 
 from ..age_group import AgeGroup
-from ..callibrate import score_reported_deaths
+from ..calibrate import score_reported_deaths
 from ..disease_parameters import OUTCOME_THRESHOLDS
 from ..intervention import SocialDistancingChange, DiagnosisDelayChange
 from ..parameters import Parameters
