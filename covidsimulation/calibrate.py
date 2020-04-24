@@ -1,12 +1,14 @@
-from typing import List, Tuple, Dict, Iterable, Callable
+from typing import List, Tuple, Dict, Iterable, Callable, Optional
 import numpy as np
+from itertools import cycle
 from functools import partial
 from copy import deepcopy
 from itertools import product
 from multiprocessing import Manager, Pool, cpu_count
 
 from . import Parameters, Stats
-from .simulation_engine import simulate, combine_stats, show_progress
+from .simulation_engine import simulate_wrapped, combine_stats, show_progress, get_sim_params_list
+from .random import RandomParametersState
 
 
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
@@ -46,7 +48,6 @@ def calibrate_parameters(
                                    duration=duration,
                                    simulate_capacity=simulate_capacity,
                                    use_cache=use_cache,
-                                   add_noise=False,
                                    creation_queue=creation_queue if tqdm else None,
                                    simulation_queue=simulation_queue if tqdm else None,
                                    )
@@ -97,10 +98,6 @@ def get_simulation_parameters(sim_params: Parameters, parameters_to_try: List[Tu
     return sim_params_list, combinations
 
 
-def simulate_wrapped(i_params, **kwargs):
-    return simulate(*i_params, **kwargs)
-
-
 def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[int, float]]):
     metric = stats.get_metric('confirmed_deaths')[1]
     lse = 0.0
@@ -108,3 +105,63 @@ def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[int, float]]
         le = np.log((metric[day] + LSE_REGULARIZATOR) / (reporded_deaths + LSE_REGULARIZATOR))
         lse += le ** 2
     return lse
+
+
+def get_best_random_states(
+        score_function: Callable,
+        sim_params: Parameters,
+        random_states: Optional[List[RandomParametersState]],
+        simulate_capacity=False,
+        duration: int = 80,
+        simulation_size: int = 100000,
+        n: int = 10,
+        p: float = 0.1,
+        use_cache=True,
+        tqdm=None,
+) -> List[RandomParametersState]:
+    """
+    parameters_to_try: List of tuples (setting_fn, [values]). The function setting_fn must take 2
+        parameters (sim_params: Parameters, value) and must modify sim_params.
+    score_fn: Function that receives a Stats object and returns a double that needs to be minimized.
+    sim_params: Parameters that will be used as a template for each simulation.
+    """
+
+    sim_params_list = get_sim_params_list(sim_params, random_states, n)
+
+    if tqdm:
+        manager = Manager()
+        creation_queue = manager.Queue()
+        simulation_queue = manager.Queue()
+
+
+    simulate_with_params = partial(simulate_wrapped,
+                                   simulation_size=simulation_size,
+                                   duration=duration,
+                                   simulate_capacity=simulate_capacity,
+                                   use_cache=use_cache,
+                                   add_noise=False,
+                                   creation_queue=creation_queue if tqdm else None,
+                                   simulation_queue=simulation_queue if tqdm else None,
+                                   )
+    try:
+        pool = Pool(min(cpu_count(), len(sim_params_list)))
+        all_stats = pool.imap(simulate_with_params, sim_params_list)
+        if tqdm:
+            creation_bar, simulation_bar = show_progress(tqdm, creation_queue, simulation_queue, simulation_size,
+                                                         len(sim_params_list), duration)
+            creation_bar.start()
+            simulation_bar.start()
+        all_stats = list(all_stats)
+        scores = [score_function(combine_stats(stats, sim_params)) for stats in grouper(all_stats, 1)]
+    finally:
+        pool.close()
+        pool.join()
+        if tqdm:
+            creation_bar.stop()
+            creation_bar.join()
+            simulation_bar.stop()
+            simulation_bar.join()
+
+    best = np.argsort(np.array(scores))
+    num_scores = len(scores) - int((1.0 - p) * len(scores))
+    return [sim_params_list[i][1].random_parameters_state for i in best[:num_scores]]

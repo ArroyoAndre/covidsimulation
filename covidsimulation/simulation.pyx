@@ -231,7 +231,7 @@ cdef class SimulationConstants:
         self.time_to_outcome_severe_shape = 2.0
         self.time_to_hospitalization_severe_proportion = 0.5
         self.immunization_period = 0.0  # Mean immunization duration. Permanent if 0.0
-        self.individual_daily_influence_in_social_distancing = 0.5
+        self.individual_daily_influence_in_social_distancing = 0.2
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -742,7 +742,7 @@ cdef class Person:
     def run_contagion_street(self):
         cdef Person contact_on_street
         yield self.timeout(
-            np.random.exponential(self.senv.randomness.street_expositions_interval)
+            np.random.exponential(self.senv.street_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
             if self.test_street_transmission():
@@ -751,13 +751,13 @@ cdef class Person:
                     if contact_on_street.expose_to_virus():
                         self.transmited += 1
             yield self.timeout(
-                np.random.exponential(self.senv.randomness.street_expositions_interval)
+                np.random.exponential(self.senv.street_expositions_interval)
             )
 
     def run_contagion_social_group(self):
         cdef Person contact_on_group
         yield self.timeout(
-            np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+            np.random.exponential(self.senv.social_group_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
             if self.test_social_group_transmission():
@@ -766,7 +766,7 @@ cdef class Person:
                     if contact_on_group.expose_to_virus():
                         self.transmited += 1
             yield self.timeout(
-                np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+                np.random.exponential(self.senv.social_group_expositions_interval)
             )
 
     cdef void setup_remove_immunization(self):

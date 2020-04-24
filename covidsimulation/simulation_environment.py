@@ -10,15 +10,6 @@ from .lab import Lab
 
 
 @dataclass
-class SimulationRandomness:
-    severity_deviation: float
-    severity_bias: float
-    isolation_deviation: float
-    street_expositions_interval: float
-    social_group_expositions_interval: float
-
-
-@dataclass
 class SimulationEnvironment:
     env: Environment
     sim_params: 'Parameters'
@@ -26,13 +17,14 @@ class SimulationEnvironment:
     sim_number: int
     scaling: float
     simulate_capacity: bool
-    randomness: SimulationRandomness
     isolation_factor: float
     attention: PriorityResource
     hospital_bed: PriorityResource
     ventilator: PriorityResource
     icu: PriorityResource
     stats: np.ndarray
+    street_expositions_interval: float
+    social_group_expositions_interval: float
     creation_queue: Optional[Queue]
     simulation_queue: Optional[Queue]
     d0: Optional[float] = None

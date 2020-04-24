@@ -30,6 +30,8 @@ import pickle
 
 from smart_open import open  # Allows for saving into S3 and other cool stuff
 
+from .random import RandomParametersState
+
 CONFIDENCE_RANGE = (20, 80)
 DEFAULT_START_DATE = '2020-03-01'
 EPS = 1e-8  # To avoid division by zero
@@ -37,6 +39,7 @@ EPS = 1e-8  # To avoid division by zero
 
 class Stats:
     stats: np.ndarray
+    random_states: List[RandomParametersState]
     measurements: List[str]
     metrics: Dict[str, Tuple[str, str]]
     population_names: Iterable[str]
@@ -47,6 +50,7 @@ class Stats:
     def __init__(
             self,
             stats: np.ndarray,
+            random_states: List[RandomParametersState],
             measurements: List[str],
             metrics: Dict[str, Tuple[str, str]],
             population_names: List[str],
@@ -55,6 +59,7 @@ class Stats:
             filter_indices: Optional[Iterable] = None,
     ):
         self.stats = stats
+        self.random_states = random_states
         self.measurements = measurements
         self.metrics = metrics
         self.population_names = population_names
@@ -103,7 +108,7 @@ class Stats:
             metric = metric[self.filter_indices, :]
         return (
             self,
-            metric.mean(0),
+            np.median(metric, axis=0),
             np.percentile(metric, confidence_range[0], axis=0),
             np.percentile(metric, confidence_range[1], axis=0),
         )
