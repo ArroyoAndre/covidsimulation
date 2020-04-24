@@ -14,7 +14,8 @@ class SimulationRandomness:
     severity_deviation: float
     severity_bias: float
     isolation_deviation: float
-    expositions_interval: float
+    street_expositions_interval: float
+    social_group_expositions_interval: float
 
 
 @dataclass

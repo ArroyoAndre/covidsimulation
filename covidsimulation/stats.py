@@ -32,6 +32,7 @@ from smart_open import open  # Allows for saving into S3 and other cool stuff
 
 CONFIDENCE_RANGE = (20, 80)
 DEFAULT_START_DATE = '2020-03-01'
+EPS = 1e-8  # To avoid division by zero
 
 
 class Stats:
@@ -61,7 +62,7 @@ class Stats:
         self.start_date = start_date
         self.filter_indices = filter_indices
 
-    def _get_estatistica(self, indice_metrica, nome_populacao, nome_faixa):
+    def _get_estatistica(self, indice_metrica, nome_populacao, nome_faixa) -> np.ndarray:
         if nome_populacao:
             indice_populacao = get_index(nome_populacao, self.population_names)
             stats_populacao = self.stats[:, indice_populacao, indice_metrica, :, :]
@@ -74,14 +75,14 @@ class Stats:
             stats_faixa = stats_populacao.sum(1)
         return stats_faixa
 
-    def _get_metric_raw(self, nome_metrica, nome_populacao, nome_faixa, fatores, diaria):
+    def _get_metric_raw(self, nome_metrica, nome_populacao, nome_faixa, fatores, diaria) -> np.ndarray:
         numerator_name, denominator_name = self.metrics[nome_metrica]
         indice_metrica = get_index(numerator_name, self.measurements)
         estatistica = self._get_estatistica(indice_metrica, nome_populacao, nome_faixa)
         if denominator_name:
             indice_divisor = get_index(denominator_name, self.measurements)
             divisor = self._get_estatistica(indice_divisor, nome_populacao, nome_faixa)
-            estatistica = estatistica / divisor
+            estatistica = estatistica / (divisor + EPS)
         elif not fatores is None:
             estatistica *= fatores
         if diaria:

@@ -29,9 +29,7 @@ class SocialDistancingChange(Intervention):
 
     def apply(self, senv: SimulationEnvironment) -> None:
         distancing_factor = self.parameter
-        desvio_logit = (senv.randomness.isolation_deviation - 0.5) / 5.0
-        isolation_factor = np.power(distancing_factor, 0.65)
-        senv.isolation_factor = logit_transform_value(isolation_factor, desvio_logit)
+        senv.isolation_factor = logit_transform_value(distancing_factor, senv.randomness.isolation_deviation)
         for person in senv.people:
             person.in_isolation = person.home.isolation_propensity < senv.isolation_factor
 
@@ -43,3 +41,32 @@ class DiagnosisDelayChange(Intervention):
         for person in senv.people:
             if person.age_group.diagnosis_delay > diagnosis_max_delay:
                 person.age_group.diagnosis_delay = diagnosis_max_delay
+
+
+class MaskUsage(Intervention):
+
+    def apply(self, senv: SimulationEnvironment) -> None:
+        average_adherence = self.parameter
+        for person in senv.people:
+            if average_adherence:
+                person_average_adherence = average_adherence * person.age_group.masks_max_adherence
+                person.masks_usage = np.random.beta(
+                    person_average_adherence * person.age_group.masks_adherence_shape,
+                    (1.0 - person_average_adherence) * person.age_group.masks_adherence_shape,
+                )
+            else:
+                person.masks_usage = 0.0
+
+class HygieneAdoption(Intervention):
+
+    def apply(self, senv: SimulationEnvironment) -> None:
+        average_adherence = self.parameter
+        for person in senv.people:
+            if average_adherence:
+                person_average_adherence = average_adherence * person.age_group.hygiene_max_adherence
+                person.hygiene_adoption = np.random.beta(
+                    person_average_adherence * person.age_group.hygiene_shape,
+                    (1.0 - person_average_adherence) * person.age_group.hygiene_shape,
+                )
+            else:
+                person.hygiene_adoption = 0.0

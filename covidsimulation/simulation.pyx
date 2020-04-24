@@ -107,7 +107,7 @@ def seed(unsigned i):
     srand(i)
 
 
-cpdef logit_transform_value(double p, double adjustment_logit):
+cpdef double logit_transform_value(double p, double adjustment_logit):
     """Take a uniform-distributed value p in ]0.0, 1.0[, and move it in the logistic distribution curve by adjustment_logit 
     """
     cdef double odds = p / (1.0 - p)
@@ -118,10 +118,14 @@ cpdef logit_transform_value(double p, double adjustment_logit):
     return corrected_p
 
 
-cdef sample_from_logit_uniform(double adjustment_logit):
+cdef double get_uniform():
+    return (rand() + 1.0) / (RAND_MAX + 2.0)
+
+
+cdef double sample_from_logit_uniform(double adjustment_logit):
     cdef double p = 1.0
     while not (0.0 < p < 1.0):
-        p = (rand() + 1.0) / (RAND_MAX + 2.0)
+        p = get_uniform()
     return logit_transform_value(p, adjustment_logit)
 
 
@@ -157,26 +161,39 @@ cdef _choice(list arr, size_t sample_size):
 
 
 cdef choose_contact_on_street(object person, object people, size_t sample_size=LOCALITY):
-    cdef bool intra_ages = c_mod(rand(), 2) != 0
-    if intra_ages:
-        sample_size *= 2
     sample = _choice(people, sample_size)  
     distances = np.zeros([sample_size])
     cdef float px = person.home.coords[0]
     cdef float py = person.home.coords[1]
     cdef float pz = person.home.coords[2]
     cdef float index = person.age_group.index
-    cdef bool find_non_isolated_person = c_mod(rand(), 2)
+    cdef float[3] icoords
     for i, individual in enumerate(sample):
         icoords = individual.home.coords
         distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
-    if intra_ages:
+    chosen = sample[np.argmin(distances)]
+    return chosen
+
+
+cdef choose_contact_from_social_group(object person, object people, size_t sample_size=LOCALITY*2):
+    sample = _choice(people, sample_size)  
+    distances = np.zeros([sample_size])
+    cdef float px = person.home.coords[0]
+    cdef float py = person.home.coords[1]
+    cdef float pz = person.home.coords[2]
+    cdef float index = person.age_group.index
+    cdef bint find_non_isolated_person = c_mod(rand(), 2)
+    cdef float[3] icoords
+    for i, individual in enumerate(sample):
+        icoords = individual.home.coords
+        distances[i] = (px - icoords[0]) ** 2 + (py - icoords[1]) ** 2 + (pz - icoords[2]) ** 2
         if individual.age_group.index != index:
             distances[i] += 1.0
         if find_non_isolated_person and individual.in_isolation:
             distances[i] += 1.0            
     chosen = sample[np.argmin(distances)]
     return chosen
+
 
 ###
 ## SimulationConstants and defaults
@@ -259,8 +276,8 @@ cdef class Home:
     def add_person(self, Person person):
         self.residents.append(person)
         person.home = self
-        self.isolation_propensity = np.array([p.isolation_propensity for p in self.residents]).mean()
-
+        isolation_adherence = np.array([p.age_group.isolation_adherence for p in self.residents]).mean()
+        self.isolation_propensity = sample_from_logit_uniform(isolation_adherence)
 
 ####
 ## Person - an individual being simulated, with all characteristics about the disease
@@ -275,7 +292,6 @@ cdef class Person:
     cdef public object age_group
     cdef Py_ssize_t age_group_index
     cdef SimulationConstants sim_consts
-    cdef public float isolation_propensity
     cdef size_t expected_outcome
     cdef public Home home
 
@@ -294,7 +310,9 @@ cdef class Person:
     cdef public float hospitalization_date
     cdef public float death_date
     cdef public float recovery_date
-    cdef public size_t transmitted
+    cdef public float masks_usage
+    cdef public float hygiene_adoption
+    cdef public size_t transmited
     cdef public bool in_hospital_bed
     cdef public bool in_icu
     cdef public bool in_ventilator
@@ -327,7 +345,9 @@ cdef class Person:
         self.hospitalization_date = 0.0
         self.death_date = 0.0
         self.recovery_date = 0.0
-        self.transmitted = 0
+        self.masks_usage = 0.0
+        self.hygiene_adoption = 0.0
+        self.transmited = 0
         self.in_hospital_bed = False
         self.in_icu = False
         self.in_ventilator = False
@@ -338,14 +358,10 @@ cdef class Person:
         self.ventilator_req = None
         self.age_group = age_group
         self.age_group_index = age_group.index
-        self.isolation_propensity = self.get_isolation_propensity()
         self.expected_outcome = 0
         home.add_person(self)
 
-    cdef get_isolation_propensity(self):
-        return sample_from_logit_uniform(self.age_group.isolation_adherence)
-
-    cdef calculate_case_params(self):
+    cdef void calculate_case_params(self):
         self.time_until_symptoms = np.random.weibull(
             self.sim_consts.symptoms_delay_shape
             ) * self.sim_consts.symptoms_delay_scale
@@ -376,13 +392,14 @@ cdef class Person:
         self.contagious = True
         self.process(self.run_contagion_home())
         self.process(self.run_contagion_street())
+        self.process(self.run_contagion_social_group())
         contagion_duration = np.random.weibull(
             self.sim_consts.contagion_duration_shape) * self.sim_consts.contagion_duration_scale
         self.configure_evolution()
         yield self.timeout(contagion_duration)
         self.contagious = False
 
-    cdef configure_evolution(self):
+    cdef void configure_evolution(self):
         if self.expected_outcome == Outcome.DEATH:
             self.configure_evolution_death()
         elif self.expected_outcome == Outcome.VENTILATION:
@@ -396,7 +413,7 @@ cdef class Person:
         else:
             self.configure_evolution_mild_at_home()
 
-    cdef configure_evolution_death(self):
+    cdef void configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
         time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -404,7 +421,7 @@ cdef class Person:
         self.process(self.run_ventilation(time_until_icu_and_ventilation))
         self.process(self.run_death(time_until_outcome))
 
-    cdef configure_evolution_ventilation(self):
+    cdef void configure_evolution_ventilation(self):
         time_until_outcome = np.random.weibull(2) * 36  # 32 dias
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -416,7 +433,7 @@ cdef class Person:
         self.process(self.run_leave_icu(time_until_icu_ends))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_icu(self):
+    cdef void configure_evolution_icu(self):
         time_until_outcome = np.random.weibull(2) * 34  # 30 dias 
         time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
@@ -426,23 +443,23 @@ cdef class Person:
         self.process(self.run_leave_icu(time_until_icu_ends))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_hospitalization(self):
+    cdef void configure_evolution_hospitalization(self):
         time_until_outcome = np.random.weibull(
             self.sim_consts.time_to_outcome_severe_shape) * self.sim_consts.time_to_outcome_severe_scale
         time_until_hospitalization = time_until_outcome * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
         self.process(self.run_leave_hospital(time_until_outcome))
 
-    cdef configure_evolution_moderate_at_home(self):
+    cdef void configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.process(self.run_cure(time_until_outcome))
         self.request_diagnosis()
 
-    cdef configure_evolution_mild_at_home(self):
+    cdef void configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
         self.process(self.run_cure(time_until_outcome))
     
-    cdef request_diagnosis(self):
+    cdef void request_diagnosis(self):
         diagnosis_delay = self.age_group.diagnosis_delay
         if diagnosis_delay is None:
             self.senv.lab.request_exam(1, self)
@@ -634,31 +651,118 @@ cdef class Person:
     cdef infect_in_home(self):
         for person in self.home.residents:
             if not (person is self):
-                if np.random.random() < self.sim_consts.home_contamination_daily_probability:
-                    transmitted = person.expose_to_virus()
-                    if transmitted:
-                        self.transmitted += 1
+                if get_uniform() < self.sim_consts.home_contamination_daily_probability:
+                    transmited = person.expose_to_virus()
+                    if transmited:
+                        self.transmited += 1
 
-    cdef test_isolation(self):
-        return self.in_isolation and np.random.random() < self.age_group.isolation_effectiveness
+    cdef bint test_isolation(self):
+        """
+        Test if a person's isolation can avoid a transmission and/or infection situation
+        """
+        return self.in_isolation and get_uniform() < self.age_group.isolation_effectiveness
+
+    cdef bint test_mask_transmission(self):
+        """
+        Test if a person's mask usage can prevent transmission
+        """
+        if self.masks_usage:
+            if self.masks_usage > get_uniform():  # mask was being used
+                if self.age_group.mask_transmission_reduction > get_uniform():  # mask was effective
+                    return 0
+        return 1
+
+    cdef bint test_mask_infection(self):
+        """
+        Test if a person's mask usage can avoid infection
+        """
+        if self.masks_usage:
+            if self.masks_usage > get_uniform():  # mask was being used
+                if self.age_group.mask_infection_reduction > get_uniform():  # mask was effective
+                    return 0
+        return 1
+
+    cdef bint test_hygiene_infection(self):
+        """
+        Test if a person's hygiene measures can avoid infection
+        """
+        if self.hygiene_adoption:
+            if self.hygiene_adoption > get_uniform():  # hygiene was being practicised
+                if self.age_group.hygiene_infection_reduction > get_uniform():  # hygiene was effective
+                    return 0
+        return 1
+
+    cdef bint test_street_transmission(self):
+        """
+        Test if a person can transmit to others in the street, given person's containment measures
+        """
+        return (
+            (not self.test_isolation()) 
+            and self.test_mask_transmission()
+        )
+
+    cdef bint test_street_infection(self):
+        """
+        Test if a person can be infected in the street, given person's containment measures
+        """
+        return (
+            self.susceptible 
+            and (not self.test_isolation()) 
+            and self.test_mask_infection()
+            and self.test_hygiene_infection()
+        )
+
+    cdef bint test_social_group_transmission(self):
+        """
+        Test if a person can transmit to others in its social group, given person's containment measures
+        """
+        return (
+            (not self.in_isolation) 
+            and self.test_mask_transmission()
+        )
+
+    cdef bint test_social_group_infection(self):
+        """
+        Test if a person can be infected in its social group, given person's containment measures
+        """
+        return (
+            self.susceptible
+            and (not self.in_isolation) 
+            and self.test_mask_infection()
+            and self.test_hygiene_infection()
+        )
 
     def run_contagion_street(self):
         cdef Person contact_on_street
         yield self.timeout(
-            np.random.exponential(self.senv.randomness.expositions_interval)
+            np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
         while self.contagious and not self.hospitalized:
-            if not self.test_isolation():
+            if self.test_street_transmission():
                 contact_on_street = choose_contact_on_street(self, self.senv.people)
-                if contact_on_street.susceptible and not (contact_on_street.test_isolation() 
-                                                          or contact_on_street.hospitalized):
+                if contact_on_street.test_street_infection():
                     if contact_on_street.expose_to_virus():
-                        self.transmitted += 1
+                        self.transmited += 1
             yield self.timeout(
-                np.random.exponential(self.senv.randomness.expositions_interval)
+                np.random.exponential(self.senv.randomness.street_expositions_interval)
             )
 
-    cdef setup_remove_immunization(self):
+    def run_contagion_social_group(self):
+        cdef Person contact_on_group
+        yield self.timeout(
+            np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+            )
+        while self.contagious and not self.hospitalized:
+            if self.test_social_group_transmission():
+                contact_on_group = choose_contact_from_social_group(self, self.senv.people)
+                if contact_on_group.test_social_group_infection():
+                    if contact_on_group.expose_to_virus():
+                        self.transmited += 1
+            yield self.timeout(
+                np.random.exponential(self.senv.randomness.social_group_expositions_interval)
+            )
+
+    cdef void setup_remove_immunization(self):
         if self.sim_consts.immunization_period:
             self.process(self.run_remove_immunization())
 
@@ -677,49 +781,49 @@ cdef int get_person(Person person):
     return 1
 
 cdef int get_infected(Person person):
-    return person.infected
+    return 1 if person.infected else 0
 
 cdef int get_in_isolation(Person person):
-    return person.in_isolation
+    return 1 if person.in_isolation else 0
 
 cdef int get_diagnosed(Person person):
-    return person.diagnosed
+    return 1 if person.diagnosed else 0
 
 cdef int get_deaths(Person person):
-    return person.dead
+    return 1 if person.dead else 0
 
 cdef int get_confirmed_deaths(Person person):
-    return person.dead and person.diagnosed
+    return 1 if person.dead and person.diagnosed else 0
 
 cdef int get_hospitalized(Person person):
-    return person.hospitalized
+    return 1 if person.hospitalized else 0
 
 cdef int get_in_ventilator(Person person):
-    return person.in_ventilator
+    return 1 if person.in_ventilator else 0
 
 cdef int get_in_icu(Person person):
-    return person.in_icu
+    return 1 if person.in_icu else 0
 
 cdef int get_in_hospital_bed(Person person):
-    return person.in_hospital_bed
+    return 1 if person.in_hospital_bed else 0
 
 cdef int get_contagious(Person person):
-    return person.contagious
+    return 1 if person.contagious else 0
 
 cdef int get_contagion_ended(Person person):
-    return person.infected and not (person.contagious or person.in_incubation)
+    return 1 if person.infected and not (person.contagious or person.in_incubation) else 0
 
 cdef int get_rt(Person person):
-    return person.transmitted if person.infected and not (person.contagious or person.in_incubation) else 0
+    return person.transmited if person.infected and not (person.contagious or person.in_incubation) else 0
 
 cdef int get_susceptible(Person person):
-    return person.susceptible
+    return 1 if person.susceptible else 0
 
 cdef int get_confirmed_inpatients(Person person):
-    return person.hospitalized and person.diagnosed
+    return 1 if person.hospitalized and person.diagnosed else 0
 
 cdef int get_confirmed_in_icu(Person person):
-    return person.in_icu and person.diagnosed
+    return 1 if person.in_icu and person.diagnosed else 0
 
 ctypedef int (*int_from_person)(Person)
 
