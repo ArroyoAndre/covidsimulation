@@ -163,4 +163,4 @@ def get_best_random_states(
 
     best = np.argsort(np.array(scores))
     num_scores = len(scores) - int((1.0 - p) * len(scores))
-    return [sim_params_list[i][1].random_parameters_state for i in best[:num_scores]]
+    return [all_stats[i][1] for i in best[:num_scores]]
