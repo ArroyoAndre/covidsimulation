@@ -34,13 +34,13 @@ ISOLATION_PROPENSITY_PER_AGE = [
     0.2,  # 4
     0.7,  # 5
     0.5,  # 6
-    1.8,  # 7
-    1.8,  # 8
+    2.0,  # 7
+    2.0,  # 8
 ]
 
 
-ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.6
-ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.5
+ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.9
+ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.6
 ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC = [
     0.4,  # 0
     0.0,  # 1
@@ -64,7 +64,7 @@ PUBLICO_E = Population(
     ],
     home_size_probabilities=np.array([0.16, 0.23, 0.26, 0.17, 0.12, 0.06]),
     inhabitants=total_inhabitants * 1 / 12.0,
-    geosocial_displacement=0.6,  # deslocamento geográfico
+    geosocial_displacement=0.5,  # deslocamento geográfico
     seed_infections=1,
 )
 
@@ -78,8 +78,8 @@ PUBLICO_CD = Population(
     ],
     home_size_probabilities=np.array([0.19, 0.25, 0.26, 0.16, 0.10, 0.04]),
     inhabitants=total_inhabitants * 6 / 12.0,
-    geosocial_displacement=0.2,  # deslocamento geográfico
-    seed_infections=9,
+    geosocial_displacement=0.25,  # deslocamento geográfico
+    seed_infections=6,
 )
 
 PRIVADO = Population(
