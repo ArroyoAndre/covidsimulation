@@ -27,7 +27,7 @@ total_inhabitants = 20000000
 
 
 ISOLATION_PROPENSITY_PER_AGE = [
-    0.4,  # 0
+    0.0,  # 0
     0.0,  # 1
     -0.5,  # 2
     -0.3,  # 3
@@ -39,8 +39,8 @@ ISOLATION_PROPENSITY_PER_AGE = [
 ]
 
 
-ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.4
-ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.2
+ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.6
+ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.5
 ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC = [
     0.4,  # 0
     0.0,  # 1
@@ -62,12 +62,7 @@ PUBLICO_E = Population(
                  diagnosis_delay=18.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
-    home_size_probabilities=np.array([
-        0.3,  # 1p
-        0.25,  # 2p
-        0.25,  # 3p
-        0.2,  # 4p
-    ]),
+    home_size_probabilities=np.array([0.16, 0.23, 0.26, 0.17, 0.12, 0.06]),
     inhabitants=total_inhabitants * 1 / 12.0,
     geosocial_displacement=0.6,  # deslocamento geográfico
     seed_infections=1,
@@ -81,12 +76,7 @@ PUBLICO_CD = Population(
                  diagnosis_delay=18.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
-    home_size_probabilities=np.array([
-        0.3,  # 1p
-        0.25,  # 2p
-        0.25,  # 3p
-        0.2,  # 4p
-    ]),
+    home_size_probabilities=np.array([0.19, 0.25, 0.26, 0.16, 0.10, 0.04]),
     inhabitants=total_inhabitants * 6 / 12.0,
     geosocial_displacement=0.2,  # deslocamento geográfico
     seed_infections=9,
@@ -99,12 +89,7 @@ PRIVADO = Population(
         AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC[i], 0.95, diagnosis_delay=4.0)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
-    home_size_probabilities=np.array([
-        0.3,  # 1p
-        0.3,  # 2p
-        0.25,  # 3p
-        0.15,  # 4p
-    ]),
+    home_size_probabilities=np.array([0.21, 0.26, 0.26, 0.15, 0.09, 0.03]),
     inhabitants=total_inhabitants * 5 / 12.0,
     geosocial_displacement=0.0,  # deslocamento geográfico
     seed_infections=10,
@@ -129,7 +114,7 @@ params = Parameters(
     population_segments,
     SimulationConstants(),
     interventions=interventions,
-    d0_infections=UniformParameter('sp_d0_infections', 15000, 40000),
+    d0_infections=UniformParameter('sp_d0_infections', 12000, 50000),
     start_date='2020-03-13',
     capacity_hospital_max=60000,
     capacity_hospital_beds=20000,

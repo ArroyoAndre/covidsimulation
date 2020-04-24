@@ -39,7 +39,7 @@ class Parameters:
     random_parameters_state: RandomParametersState = field(default_factory=RandomParametersState)
     severity_deviation: RandomParameter = TriangularParameter('severity_deviation', -0.2, 0.0, 0.2)
     severity_bias: RandomParameter = UniformParameter('severity_bias', -0.2, 0.2)
-    isolation_deviation: RandomParameter = UniformParameter('isolation_deviation', -0.1, 0.1)
+    isolation_deviation: RandomParameter = UniformParameter('isolation_deviation', -0.5, 0.5)
 
     def __post_init__(self):
         self.total_inhabitants = sum(p.inhabitants for p in self.population_segments)
