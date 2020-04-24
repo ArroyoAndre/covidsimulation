@@ -88,7 +88,7 @@ def generate_people_in_new_house(senv: SimulationEnvironment, population_params:
         yield cs.Person(senv, age_group, house)
 
 
-def add_randomness_to_age_group(senv: SimulationEnvironment, age_group):
+def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, i):
     severity = np.array(age_group.severity)
     age_bias = senv.randomness.severity_bias * (i - 4)
     new_odds = np.exp(np.log(severity / (1.0 - severity)
@@ -100,7 +100,7 @@ def create_populations(senv: SimulationEnvironment) -> Dict[str, List[cs.Person]
     populations = {}
     for population_params in senv.sim_params.population_segments:
         for i, age_group in enumerate(population_params.age_groups):
-            add_randomness_to_age_group(senv, age_group)
+            add_randomness_to_age_group(senv, age_group, i)
         populations[population_params.name] = get_population(senv, population_params)
     return populations
 
