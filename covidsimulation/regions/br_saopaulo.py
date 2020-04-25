@@ -8,7 +8,7 @@ from ..disease_parameters import OUTCOME_THRESHOLDS
 from ..intervention import SocialDistancingChange, DiagnosisDelayChange
 from ..parameters import Parameters
 from ..population import Population
-from ..random import UniformParameter
+from ..random import UniformParameter, UniformIntParameter
 from ..simulation import SimulationConstants
 
 age_structure = {
@@ -66,6 +66,7 @@ PUBLICO_E = Population(
     inhabitants=total_inhabitants * 1 / 12.0,
     geosocial_displacement=0.5,  # deslocamento geográfico
     seed_infections=1,
+    isolation_propensity_increase=UniformParameter('classe_e_isolation', -1.5, 1.5),
 )
 
 PUBLICO_CD = Population(
@@ -79,7 +80,8 @@ PUBLICO_CD = Population(
     home_size_probabilities=np.array([0.19, 0.25, 0.26, 0.16, 0.10, 0.04]),
     inhabitants=total_inhabitants * 6 / 12.0,
     geosocial_displacement=0.25,  # deslocamento geográfico
-    seed_infections=6,
+    seed_infections=UniformIntParameter('classe_c-d_seed', 1, 12),
+    isolation_propensity_increase=UniformParameter('classe_c-d_isolation', -1.5, 1.5),
 )
 
 PRIVADO = Population(
@@ -93,6 +95,7 @@ PRIVADO = Population(
     inhabitants=total_inhabitants * 5 / 12.0,
     geosocial_displacement=0.0,  # deslocamento geográfico
     seed_infections=10,
+    isolation_propensity_increase=UniformParameter('classe_abc+_isolation', -1.5, 1.5),
 )
 
 population_segments = [PRIVADO, PUBLICO_CD, PUBLICO_E]
@@ -147,4 +150,8 @@ sp_official_deaths = [
     (42, 1281.0),  # 2020-04-24
 ]
 
-score_fn = partial(score_reported_deaths, expected_deaths=sp_official_deaths)
+score_fn_deaths = partial(score_reported_deaths, expected_deaths=sp_official_deaths)
+
+def score_fn(stats):
+    return np.log(stats.get_metric('in_intensive_care', 'classe_abc+')[1][19] /
+           stats.get_metric('in_intensive_care', 'classe_abc+')[1][29]) ** 2 + score_fn_deaths(stats)

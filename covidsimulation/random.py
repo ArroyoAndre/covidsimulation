@@ -52,3 +52,12 @@ class TriangularParameter(RandomParameter):
 
     def _get_random(self):
         return np.random.triangular(self.min, self.mode, self.max)
+
+@dataclass
+class UniformIntParameter(RandomParameter):
+    name: str
+    min: int
+    max: int
+
+    def _get_random(self):
+        return np.random.randint(self.min, self.max)

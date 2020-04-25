@@ -66,6 +66,8 @@ def get_population(senv: SimulationEnvironment, population_params: Population) -
     initially_infected = population_params.seed_infections
     while len(people) < n:
         people.extend(generate_people_in_new_house(senv, population_params))
+    if isinstance(initially_infected, RandomParameter):
+        initially_infected = initially_infected.materialize(senv.sim_params.random_parameters_state)
     for _ in range(initially_infected):
         set_initial_infection(senv.sim_params, people)
     if senv.creation_queue:
@@ -88,7 +90,7 @@ def generate_people_in_new_house(senv: SimulationEnvironment, population_params:
         yield cs.Person(senv, age_group, house)
 
 
-def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, i):
+def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, population_params: Population, i):
     severity = np.array(age_group.severity)
     age_bias = senv.sim_params.severity_bias.materialize(senv.sim_params.random_parameters_state) * (i - 4)
     new_odds = np.exp(np.log(severity / (1.0 - severity)
@@ -96,13 +98,18 @@ def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, i):
         senv.sim_params.random_parameters_state
     ) + age_bias)
     age_group.severity = new_odds / (1.0 + new_odds)
+    if isinstance(population_params.isolation_propensity_increase, RandomParameter):
+        population_params.isolation_propensity_increase = population_params.isolation_propensity_increase.materialize(
+            senv.sim_params.random_parameters_state
+        )
+    age_group.isolation_adherence += population_params.isolation_propensity_increase
 
 
 def create_populations(senv: SimulationEnvironment) -> Dict[str, List[cs.Person]]:
     populations = {}
     for population_params in senv.sim_params.population_segments:
         for i, age_group in enumerate(population_params.age_groups):
-            add_randomness_to_age_group(senv, age_group, i)
+            add_randomness_to_age_group(senv, age_group, population_params, i)
         populations[population_params.name] = get_population(senv, population_params)
     return populations
 
