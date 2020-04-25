@@ -28,8 +28,8 @@ class Parameters:
     d0_infections: Union[int, RandomParameter] = DEFAULT_D0_INFECTIONS
     start_date: str = DEFAULT_START_DATE
     home_age_cofactor: float = DEFAULT_HOME_AGE_COFACTOR
-    street_transmission_scale_days: RandomParameter = UniformParameter('street_transmission_scale_days', 0.68, 1.0)
-    social_group_transmission_scale_difference: RandomParameter = UniformParameter('street_transmission_scale_days', -0.1, 0.1)
+    street_transmission_scale_days: RandomParameter = UniformParameter('street_transmission_scale_days', 0.60, 1.0)
+    social_group_transmission_scale_difference: RandomParameter = UniformParameter('social_group_transmission_scale_difference', -0.1, 0.1)
     min_age_group_initially_infected: int = DEFAULT_MIN_AGE_GROUP_INITIALLY_INFECTED
     capacity_ventilators: int = DEFAULT_CAPACITY_VENTILATORS
     capacity_icu: int = DEFAULT_CAPACITY_INTENSIVE_CARE
@@ -37,7 +37,7 @@ class Parameters:
     capacity_hospital_max: int = DEFAULT_CAPACITY_HOSPITAL_MAX  # Maximum overcapacity
     total_inhabitants: Optional[int] = None  # Ignored
     random_parameters_state: RandomParametersState = field(default_factory=RandomParametersState)
-    severity_deviation: RandomParameter = TriangularParameter('severity_deviation', -0.2, 0.0, 0.2)
+    severity_deviation: RandomParameter = TriangularParameter('severity_deviation', -0.6, 0.0, 0.2)
     severity_bias: RandomParameter = UniformParameter('severity_bias', -0.2, 0.2)
     isolation_deviation: RandomParameter = UniformParameter('isolation_deviation', -0.5, 0.5)
 

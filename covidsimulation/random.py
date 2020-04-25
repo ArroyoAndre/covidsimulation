@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, Sequence, Callable
 
 
 import numpy as np
@@ -9,6 +9,31 @@ import numpy as np
 @dataclass
 class RandomParametersState:
     state: Dict = field(default_factory=dict)
+
+    def materialize_object(self, obj):
+        if isinstance(obj, (int, float, bool, str, Callable)):
+            return
+        elif isinstance(obj, Dict):
+            for key, value in obj.items():
+                if isinstance(value, RandomParameter):
+                    obj[key] = value.materialize(self)
+                else:
+                    self.materialize_object(value)
+        elif isinstance(obj, (Sequence, np.ndarray)):
+            for i, value in enumerate(obj):
+                if isinstance(value, RandomParameter):
+                    obj[i] = value.materialize(self)
+                else:
+                    self.materialize_object(value)
+        else:
+            for key in dir(obj):
+                if not key.startswith('_'):
+                    print(key)
+                    value = getattr(obj, key)
+                    if isinstance(value, RandomParameter):
+                        setattr(obj, key, value.materialize(self))
+                    else:
+                        self.materialize_object(value)
 
     def __getitem__(self, key):
         return self.state.get(key)
