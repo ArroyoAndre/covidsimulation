@@ -28,7 +28,6 @@ class RandomParametersState:
         else:
             for key in dir(obj):
                 if not key.startswith('_'):
-                    print(key)
                     value = getattr(obj, key)
                     if isinstance(value, RandomParameter):
                         setattr(obj, key, value.materialize(self))
