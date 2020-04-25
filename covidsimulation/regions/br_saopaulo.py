@@ -154,4 +154,4 @@ score_fn_deaths = partial(score_reported_deaths, expected_deaths=sp_official_dea
 
 def score_fn(stats):
     return np.log(stats.get_metric('in_intensive_care', 'classe_abc+')[1][19] /
-           stats.get_metric('in_intensive_care', 'classe_abc+')[1][29]) ** 2 + score_fn_deaths(stats)
+           stats.get_metric('in_intensive_care', 'classe_abc+')[1][31]) ** 2 + score_fn_deaths(stats)
