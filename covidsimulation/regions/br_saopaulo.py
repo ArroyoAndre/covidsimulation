@@ -6,10 +6,10 @@ from ..age_group import AgeGroup
 from ..calibrate import score_reported_deaths
 from ..disease_parameters import OUTCOME_THRESHOLDS
 from ..early_stop import EarlyStop
-from ..intervention import SocialDistancingChange, DiagnosisDelayChange
+from ..intervention import SocialDistancingChange, DiagnosisDelayChange, HygieneAdoption, MaskUsage
 from ..parameters import Parameters
 from ..population import Population
-from ..random import UniformParameter, UniformIntParameter
+from ..random import UniformParameter, UniformIntParameter, TriangularParameter
 from ..simulation import SimulationConstants
 
 age_structure = {
@@ -60,7 +60,7 @@ PUBLICO_E = Population(
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i] + ISOLATION_PROPENSITY_SOCIAL_CLASS_E, 0.7,
-                 diagnosis_delay=18.0)
+                 diagnosis_delay=18.0, chance_of_diagnosis_if_moderate=0.0, hygiene_max_adherence=0.33)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([0.16, 0.23, 0.26, 0.17, 0.12, 0.06]),
@@ -75,7 +75,7 @@ PUBLICO_CD = Population(
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i], 0.9,
-                 diagnosis_delay=18.0)
+                 diagnosis_delay=18.0, chance_of_diagnosis_if_moderate=0.15)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([0.19, 0.25, 0.26, 0.16, 0.10, 0.04]),
@@ -107,11 +107,14 @@ interventions = [
     SocialDistancingChange(9, 0.68),  # 2020-03-22
     SocialDistancingChange(16, 0.66),  # 2020-03-29
     SocialDistancingChange(23, 0.62),  # 2020-04-05
-    SocialDistancingChange(30, 0.60),  # 2020-04-05
+    SocialDistancingChange(30, 0.60),  # 2020-04-12
+    SocialDistancingChange(42, 0.55),  # 2020-04-24
     DiagnosisDelayChange(18, 14.0),  # Reductions in confirmations queue around 2020-04-6 - 16
     DiagnosisDelayChange(25, 10.0),
     DiagnosisDelayChange(33, 5.0),
-
+    HygieneAdoption(0, TriangularParameter('hygiene_adoption', 0.5, 0.7, 0.9)),
+    MaskUsage(16, TriangularParameter('mask_adoption', 0.5, 0.7, 0.9) * 0.5),
+    MaskUsage(40, TriangularParameter('mask_adoption', 0.5, 0.7, 0.9)),
 ]
 
 params = Parameters(

@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from covidsimulation.random import RandomParametersState, UniformParameter
+from covidsimulation.random import RandomParametersState, UniformParameter, ParameterSum
 from dataclasses import dataclass
 from typing import List, Any
 
@@ -41,3 +41,13 @@ def test_random_parameters_materialization():
     assert 'val3' in random_state.state.keys()
     assert 'val4' in random_state.state.keys()
     assert str(top).find('Uniform') == -1
+
+
+def test_random_sum():
+    state = RandomParametersState()
+    v = (1 + UniformParameter('p1', 0.0, 2.0) + 2) * 2 + 3 * UniformParameter('p2', 0.0, 1.0)
+    k = [v]
+    state.materialize_object(k)
+    assert 'p1' in state.state.keys()
+    assert 'p2' in state.state.keys()
+    assert isinstance(k[0], float)

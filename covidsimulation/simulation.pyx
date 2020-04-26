@@ -455,7 +455,8 @@ cdef class Person:
     cdef void configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
         self.process(self.run_cure(time_until_outcome))
-        self.request_diagnosis()
+        if self.age_group.chance_of_diagnosis_if_moderate > get_uniform():
+            self.request_diagnosis()
 
     cdef void configure_evolution_mild_at_home(self):
         time_until_outcome = np.random.weibull(2) * 15  # 18 dias  
