@@ -19,9 +19,9 @@ def process_early_stop(senv: SimulationEnvironment, early_stop: EarlyStop):
     day = int(senv.env.now)
     while (not day) or day < early_stop.simulation_day:
         yield senv.env.timeout(1.0)
-    if (early_stop.min_num_deaths * senv.scaling
-            < np.array([p.dead for p in senv.people]).sum()
-            < early_stop.max_num_deaths * senv.scaling
+    if (int(early_stop.min_num_deaths * senv.scaling)
+            <= np.array([p.dead and p.diagnosed for p in senv.people]).sum()
+            <= early_stop.max_num_deaths * senv.scaling
     ):
         return
     raise EarlyStopError

@@ -158,4 +158,4 @@ def score_fn(stats):
                   (stats.get_metric('in_intensive_care', 'classe_abc+')[1][31]+1)) ** 2 + score_fn_deaths(stats)
 
 
-early_stops = [EarlyStop(19, 80, 360)]
+early_stops = [EarlyStop(24, 200, 400)]
