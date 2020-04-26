@@ -11,7 +11,7 @@ class EarlyStop:
     max_num_deaths: int
 
 
-class EarlyStopError(RuntimeError):
+class EarlyStopError(Exception):
     pass
 
 
