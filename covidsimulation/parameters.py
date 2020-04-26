@@ -29,7 +29,7 @@ class Parameters:
     d0_infections: Union[int, RandomParameter] = DEFAULT_D0_INFECTIONS
     start_date: str = DEFAULT_START_DATE
     home_age_cofactor: float = DEFAULT_HOME_AGE_COFACTOR
-    street_transmission_scale_days: RandomParameter = UniformParameter('street_transmission_scale_days', 0.60, 1.0)
+    street_transmission_scale_days: RandomParameter = UniformParameter('street_transmission_scale_days', 0.60, 1.25)
     social_group_transmission_scale_difference: RandomParameter = UniformParameter('social_group_transmission_scale_difference', -0.1, 0.1)
     min_age_group_initially_infected: int = DEFAULT_MIN_AGE_GROUP_INITIALLY_INFECTED
     capacity_ventilators: int = DEFAULT_CAPACITY_VENTILATORS
