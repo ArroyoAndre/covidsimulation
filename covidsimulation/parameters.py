@@ -2,6 +2,7 @@ from typing import Dict, List, Iterable, Tuple, Optional, Union
 from copy import deepcopy
 from dataclasses import dataclass, field
 
+from .early_stop import EarlyStop
 from .intervention import Intervention
 from .simulation import SimulationConstants
 from .population import Population
@@ -40,6 +41,7 @@ class Parameters:
     severity_deviation: RandomParameter = TriangularParameter('severity_deviation', -0.6, 0.0, 0.2)
     severity_bias: RandomParameter = UniformParameter('severity_bias', -0.2, 0.2)
     isolation_deviation: RandomParameter = UniformParameter('isolation_deviation', -0.5, 0.5)
+    early_stops: Optional[List[EarlyStop]] = None
 
     def __post_init__(self):
         self.total_inhabitants = sum(p.inhabitants for p in self.population_segments)

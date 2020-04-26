@@ -5,6 +5,7 @@ import numpy as np
 from ..age_group import AgeGroup
 from ..calibrate import score_reported_deaths
 from ..disease_parameters import OUTCOME_THRESHOLDS
+from ..early_stop import EarlyStop
 from ..intervention import SocialDistancingChange, DiagnosisDelayChange
 from ..parameters import Parameters
 from ..population import Population
@@ -155,3 +156,6 @@ score_fn_deaths = partial(score_reported_deaths, expected_deaths=sp_official_dea
 def score_fn(stats):
     return np.log((stats.get_metric('in_intensive_care', 'classe_abc+')[1][19]+1) /
                   (stats.get_metric('in_intensive_care', 'classe_abc+')[1][31]+1)) ** 2 + score_fn_deaths(stats)
+
+
+early_stops = [EarlyStop(19, 80, 360)]

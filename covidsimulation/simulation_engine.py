@@ -7,6 +7,7 @@ import numpy as np
 import simpy
 from . import simulation as cs
 from .cache import get_from_cache, save_to_cache
+from .early_stop import EarlyStopError, process_early_stop
 from .lab import laboratory
 from .parameters import Parameters
 from .population import Population
@@ -166,9 +167,14 @@ def simulate(
     env.process(track_population(senv))
     for intervention in sim_params.interventions:
         intervention.setup(senv)
+    for early_stop in sim_params.early_stops or []:
+        env.process(process_early_stop(senv, early_stop))
     while not senv.d0:
         env.run(until=env.now + 1)
-    env.run(until=duration + senv.d0 + 0.011)
+    try:
+        env.run(until=duration + senv.d0 + 0.011)
+    except EarlyStopError:
+        pass
     stats = senv.stats / senv.scaling
     if use_cache:
         save_to_cache(args, (stats, sim_params.random_parameters_state))
