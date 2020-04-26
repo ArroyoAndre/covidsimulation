@@ -23,5 +23,4 @@ def process_early_stop(senv: SimulationEnvironment, early_stop: EarlyStop):
             <= early_stop.max_num_deaths * senv.scaling
     ):
         return
-    print('Early stop')
     raise EarlyStopError
