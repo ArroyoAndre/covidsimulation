@@ -25,11 +25,13 @@ class Intervention(abc.ABC):
             yield senv.env.timeout(1.0)
         self.apply(senv)
 
+
 class SocialDistancingChange(Intervention):
 
     def apply(self, senv: SimulationEnvironment) -> None:
         distancing_factor = self.parameter
-        senv.isolation_factor = logit_transform_value(distancing_factor, senv.randomness.isolation_deviation)
+        senv.isolation_factor = logit_transform_value(distancing_factor,
+                                                      senv.sim_params.isolation_deviation)
         for person in senv.people:
             person.in_isolation = person.home.isolation_propensity < senv.isolation_factor
 

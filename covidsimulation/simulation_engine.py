@@ -1,22 +1,23 @@
-from typing import List, Dict, Optional, Iterable
-from itertools import chain
+from typing import List, Dict, Optional, Iterable, Tuple
+from itertools import chain, cycle
 from functools import partial
 from multiprocessing import Manager, Pool, Queue, cpu_count
 
 import numpy as np
 import simpy
-from copy import copy
 from . import simulation as cs
 from .cache import get_from_cache, save_to_cache
+from .early_stop import EarlyStopError, process_early_stop
 from .lab import laboratory
 from .parameters import Parameters
 from .population import Population
 from .progress import ProgressBar
+from .random import RandomParametersState, RandomParameter
 from .stats import Stats
-from .simulation_environment import SimulationEnvironment, SimulationRandomness
+from .simulation_environment import SimulationEnvironment
 from .metrics import METRICS
 
-SIMULATION_ENGINE_VERSION = '0.0.2'
+SIMULATION_ENGINE_VERSION = '0.0.3'
 
 
 def get_stats_matrix(populations: Dict, duration):
@@ -88,19 +89,22 @@ def generate_people_in_new_house(senv: SimulationEnvironment, population_params:
         yield cs.Person(senv, age_group, house)
 
 
-def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, i):
+def add_randomness_to_age_group(senv: SimulationEnvironment, age_group, population_params: Population, i):
     severity = np.array(age_group.severity)
-    age_bias = senv.randomness.severity_bias * (i - 4)
+    age_bias = senv.sim_params.severity_bias * (i - 4)
     new_odds = np.exp(np.log(severity / (1.0 - severity)
-                             ) - senv.randomness.severity_deviation + age_bias)
+                             ) + senv.sim_params.severity_deviation + age_bias)
     age_group.severity = new_odds / (1.0 + new_odds)
+    if isinstance(population_params.isolation_propensity_increase, RandomParameter):
+        population_params.isolation_propensity_increase = population_params.isolation_propensity_increase
+    age_group.isolation_adherence += population_params.isolation_propensity_increase
 
 
 def create_populations(senv: SimulationEnvironment) -> Dict[str, List[cs.Person]]:
     populations = {}
     for population_params in senv.sim_params.population_segments:
         for i, age_group in enumerate(population_params.age_groups):
-            add_randomness_to_age_group(senv, age_group, i)
+            add_randomness_to_age_group(senv, age_group, population_params, i)
         populations[population_params.name] = get_population(senv, population_params)
     return populations
 
@@ -111,14 +115,13 @@ def simulate(
         simulation_size,
         duration,
         simulate_capacity,
-        add_noise,
         use_cache,
         creation_queue: Optional[Queue] = None,
         simulation_queue: Optional[Queue] = None,
-):
+) -> (np.ndarray, RandomParametersState):
     if use_cache:
         args = (
-            sim_number, sim_params, simulation_size, duration, simulate_capacity, add_noise, SIMULATION_ENGINE_VERSION)
+            sim_number, sim_params, simulation_size, duration, simulate_capacity, SIMULATION_ENGINE_VERSION)
         results = get_from_cache(args)
         if results:
             if creation_queue:
@@ -132,7 +135,7 @@ def simulate(
     scaling = simulation_size / sim_params.total_inhabitants
     env = simpy.Environment()
     sim_params = sim_params.clone()
-    randomness = get_simulation_randomness(sim_params)
+    sim_params.random_parameters_state.materialize_object(sim_params)
     senv = SimulationEnvironment(
         env=env,
         sim_params=sim_params,
@@ -141,7 +144,6 @@ def simulate(
         scaling=scaling,
         simulate_capacity=simulate_capacity,
         isolation_factor=0.0,
-        randomness=randomness,
         attention=simpy.resources.resource.PriorityResource(env,
                                                             capacity=int(sim_params.capacity_hospital_max * scaling)),
         hospital_bed=simpy.resources.resource.PriorityResource(env,
@@ -151,6 +153,11 @@ def simulate(
                                                              capacity=int(sim_params.capacity_ventilators * scaling)),
         icu=simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_icu * scaling)),
         stats=get_stats_matrix(sim_params.population_segments, duration),
+        street_expositions_interval=sim_params.street_transmission_scale_days,
+        social_group_expositions_interval=(
+                sim_params.street_transmission_scale_days
+                + sim_params.social_group_transmission_scale_difference
+        ),
         creation_queue=creation_queue,
         simulation_queue=simulation_queue,
         lab=laboratory(env, scaling),
@@ -160,23 +167,33 @@ def simulate(
     env.process(track_population(senv))
     for intervention in sim_params.interventions:
         intervention.setup(senv)
+    for early_stop in sim_params.early_stops or []:
+        env.process(process_early_stop(senv, early_stop))
     while not senv.d0:
         env.run(until=env.now + 1)
-    env.run(until=duration + senv.d0 + 0.011)
+    try:
+        env.run(until=duration + senv.d0 + 0.011)
+    except EarlyStopError:
+        pass
     stats = senv.stats / senv.scaling
     if use_cache:
-        save_to_cache(args, stats)
-    return stats
+        save_to_cache(args, (stats, sim_params.random_parameters_state))
+    return stats, sim_params.random_parameters_state
 
 
-def get_simulation_randomness(sim_params: Parameters):
-    return SimulationRandomness(
-        severity_deviation=(np.random.random() + np.random.random() - 1.0) * 0.2,
-        severity_bias=(np.random.random() - 0.5) * 0.2,
-        isolation_deviation=(np.random.random() - 0.5) / 5.0,  # uncertainty regarding isolation effectiveness
-        street_expositions_interval=sim_params.street_transmission_scale_days + (np.random.random() - 0.5) * 0.2,
-        social_group_expositions_interval=sim_params.social_group_transmission_scale_days + (np.random.random() - 0.5) * 0.2,
-    )
+def simulate_wrapped(i_params, **kwargs):
+    return simulate(*i_params, **kwargs)
+
+
+def get_sim_params_list(sim_params: Parameters, random_states: List[RandomParametersState], n: int) -> List[
+    Tuple[int, Parameters]]:
+    random_states_iter = cycle(random_states or [RandomParametersState()])
+    sim_params_list = []
+    for random_state, i in zip(random_states_iter, range(n)):
+        sim_params_with_state = sim_params.clone()
+        sim_params_with_state.random_parameters_state = random_state
+        sim_params_list.append((i, sim_params_with_state))
+    return sim_params_list
 
 
 def run_simulations(
@@ -185,8 +202,8 @@ def run_simulations(
         duration: int = 80,
         number_of_simulations: int = 4,  # For final presentation purposes, a value greater than 10 is recommended
         simulation_size: int = 100000,  # For final presentation purposes, a value greater than 500000 is recommended
+        random_states: Optional[List[RandomParametersState]]=None,
         fpath=None,
-        add_noise=True,  # Simulate uncertainty about main parameters and constants
         use_cache=True,
         tqdm=None,  # Optional tqdm function to display progress
 ):
@@ -195,19 +212,19 @@ def run_simulations(
         creation_queue = manager.Queue()
         simulation_queue = manager.Queue()
 
-    simulate_with_params = partial(simulate,
-                                   sim_params=sim_params,
+    sim_params_list = get_sim_params_list(sim_params, random_states, number_of_simulations)
+
+    simulate_with_params = partial(simulate_wrapped,
                                    simulation_size=simulation_size,
                                    duration=duration,
                                    simulate_capacity=simulate_capacity,
-                                   add_noise=add_noise,
                                    use_cache=use_cache,
                                    creation_queue=creation_queue if tqdm else None,
                                    simulation_queue=simulation_queue if tqdm else None,
                                    )
     try:
         pool = Pool(min(cpu_count(), number_of_simulations))
-        all_stats = pool.imap(simulate_with_params, range(number_of_simulations))
+        all_stats = pool.imap(simulate_with_params, sim_params_list)
         if tqdm:
             creation_bar, simulation_bar = show_progress(tqdm, creation_queue, simulation_queue, simulation_size,
                                                          number_of_simulations, duration)
@@ -228,10 +245,12 @@ def run_simulations(
     return stats
 
 
-def combine_stats(all_stats: List[np.ndarray], sim_params: Parameters):
-    mstats = np.stack(all_stats)
+def combine_stats(all_stats: List[Tuple[np.ndarray, RandomParametersState]], sim_params: Parameters):
+    mstats = np.stack([stats[0] for stats in all_stats])
+    random_states = [stats[1] for stats in all_stats]
     population_names = tuple(p.name for p in sim_params.population_segments)
-    return Stats(mstats, cs.MEASUREMENTS, METRICS, population_names, cs.age_str, start_date=sim_params.start_date)
+    return Stats(mstats, random_states, cs.MEASUREMENTS, METRICS, population_names, cs.age_str,
+                 start_date=sim_params.start_date)
 
 
 def show_progress(tqdm, creation_queue: Queue, simulation_queue: Queue, simulation_size: int,
