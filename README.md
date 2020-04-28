@@ -3,6 +3,15 @@ Covid Epidemics Simulation - Individual-based dynamic model in python and cython
 
 _"All models are wrong, but some are useful." __George Box___
 
+# About the model
+
+This is a detailed individual-based simulation of the Covid-19 epidemic within a region. It is possible to model different age-groups and different sub-populations, that behave differently with regards to transmission and interventions. Different interventions, or sequences of interventions, can be simulated as well. Most parameters can be set as a random value within a distribution, allowing to model our current uncertainty. A calibration process is provided, in which parameters or random distributions can be optimized, effectively updating our belief about them. It is possible to plot curves for many output variables of the simulation, like expected official death counts, expected real death counts, intensive-care usage, reproductive number, etc.
+
+The model mainly is intended for:
+- providing a reallistic uncertainty range about the development of the epidemic
+- studying the possible effects of interventions
+- providing insights about what factors can be contributing to the overall results observed.
+
 # Instructions
 1. Clone this repo
 1. Run `setup.sh`  (It might require making it executable: `chmod 777 setup.sh`)
@@ -38,10 +47,12 @@ pure Python would be slow and memory bound. By using Cython to define `Person` o
 significantly improved, and it is possible to simulate 1M people with less than 1GB RAM per core.
 
 # ToDo's
-1. Finish cleaning up the code and translating it into English
+1. Better documenting model setup, training and usage.
+1. Model more regions, from different countries.
+1. Model more possible interventions (e.g. intermitent social distancing, rotational work schedules, etc.)
+1. Improve the probabilistic (calibration) model, modeling the information gain from different checks, and enabling transfer of believes between regions.
 1. Improve model of interaction between people:
   - Specifying different types of interaction between people
   - Creating sub-population and groups within which interactions can occur (e.g. school class)
   - Specifying different rates of social interaction for each type and age group
-3. Automating the callibration process that is currently required before doing analysis
 ...
