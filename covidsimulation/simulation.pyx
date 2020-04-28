@@ -214,6 +214,7 @@ cdef class SimulationConstants:
     cdef public float time_to_outcome_severe_shape
     cdef public float time_to_hospitalization_severe_proportion
     cdef public float immunization_period
+    cdef public float individual_daily_influence_in_social_distancing
 
     def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
@@ -230,6 +231,7 @@ cdef class SimulationConstants:
         self.time_to_outcome_severe_shape = 2.0
         self.time_to_hospitalization_severe_proportion = 0.5
         self.immunization_period = 0.0  # Mean immunization duration. Permanent if 0.0
+        self.individual_daily_influence_in_social_distancing = 0.5
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -660,7 +662,12 @@ cdef class Person:
         """
         Test if a person's isolation can avoid a transmission and/or infection situation
         """
-        return self.in_isolation and get_uniform() < self.age_group.isolation_effectiveness
+        cdef bint isolation
+        if self.sim_consts.individual_daily_influence_in_social_distancing > get_uniform():
+            isolation = sample_from_logit_uniform(self.age_group.isolation_adherence) < self.senv.isolation_factor
+        else:
+            isolation = self.in_isolation
+        return isolation and get_uniform() < self.age_group.isolation_effectiveness
 
     cdef bint test_mask_transmission(self):
         """
@@ -717,7 +724,7 @@ cdef class Person:
         Test if a person can transmit to others in its social group, given person's containment measures
         """
         return (
-            (not self.in_isolation) 
+            (not self.test_isolation())
             and self.test_mask_transmission()
         )
 
@@ -727,7 +734,7 @@ cdef class Person:
         """
         return (
             self.susceptible
-            and (not self.in_isolation) 
+            and (not self.test_isolation())
             and self.test_mask_infection()
             and self.test_hygiene_infection()
         )
