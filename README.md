@@ -47,10 +47,11 @@ pure Python would be slow and memory bound. By using Cython to define `Person` o
 significantly improved, and it is possible to simulate 1M people with less than 1GB RAM per core.
 
 # ToDo's
-1. Better documenting model setup, training and usage.
+1. Better document model setup, training and usage.
 1. Model more regions, from different countries.
 1. Model more possible interventions (e.g. intermitent social distancing, rotational work schedules, etc.)
 1. Improve the probabilistic (calibration) model, modeling the information gain from different checks, and enabling transfer of believes between regions.
+1. Model hospital transmission to health workers and to other patients.
 1. Improve model of interaction between people:
   - Specifying different types of interaction between people
   - Creating sub-population and groups within which interactions can occur (e.g. school class)
