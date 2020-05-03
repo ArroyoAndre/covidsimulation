@@ -17,3 +17,4 @@ saved/
 !test/fixtures
 .png
 .DS_Store
+*.code-workspace
