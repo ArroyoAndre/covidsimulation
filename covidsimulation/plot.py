@@ -1,9 +1,10 @@
 import datetime
+from typing import Sequence, Tuple, Optional
 
-import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+
+from .stats import MetricResult
 
 PLOT_COLORS = [
     ('rgba(0,0,255,1)', 'rgba(0,0,255,0.25)'),
@@ -16,24 +17,23 @@ PLOT_COLORS = [
 ]
 
 
-def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, confidence_interval):
-    stats, smean, smin, smax = pop_stats
+def get_population_plot(fig, pop_stats: MetricResult, pop_name, color_index, stop, start, show_confidence_interval):
     days = [
-        {'mean': x[0], 'min': x[1], 'max': x[2]} for x in zip(smean, smin, smax)
+        {'mean': x[0], 'min': x[1], 'max': x[2]} for x in zip(pop_stats.mean, pop_stats.low, pop_stats.high)
     ]
     if stop:
         days = days[:stop]
     if start:
         days = days[start:]
     df = pd.DataFrame(days)
-    df['x'] = pd.date_range(stats.start_date, periods=len(days)).to_pydatetime()
+    df['x'] = pd.date_range(pop_stats.stats.start_date, periods=len(days)).to_pydatetime()
     if start:
         df['x'] += datetime.timedelta(days=start)
     x = df['x']
     x_rev = x[::-1]
     x_plot = pd.concat([x, x_rev], ignore_index=True)
     y1 = df['mean']
-    if confidence_interval:
+    if show_confidence_interval:
         y1_upper = df['max']
         y1_lower = df['min']
         y1_lower = y1_lower[::-1]
@@ -55,14 +55,23 @@ def get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, conf
     ))
 
 
-def plot(pop_stats_name_tuples, title, log_scale=False, size=None, stop=None, start=None, ymax=None, cindex=None,
-         confidence_interval=True):
+def plot(
+        pop_stats_name_tuples: Sequence[Tuple[MetricResult, str]],
+        title: str,
+        log_scale: bool = False,
+        size: Optional[int] = None,
+        stop: Optional[int] = None,
+        start: Optional[int] = None,
+        ymax: Optional[float] = None,
+        cindex: Optional[int] = None,
+        show_confidence_interval: bool = True,
+):
     fig = go.FigureWidget()
     for color_index, (pop_stats, pop_name) in enumerate(pop_stats_name_tuples):
         color_index = color_index % len(PLOT_COLORS)
-        if not cindex is None:
+        if cindex is not None:
             color_index = cindex
-        get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, confidence_interval)
+        get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, show_confidence_interval)
     fig.update_layout(
         title=title)
     if ymax:

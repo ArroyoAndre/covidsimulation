@@ -1,11 +1,12 @@
-smart_open
-matplotlib
-plotly
-numpy
-pandas
-simpy
 Cython==0.29.16
 dataclasses; python_version < '3.7'
-tqdm
-pytest
 ipywidgets
+matplotlib
+numpy
+pandas
+plotly
+pytest
+scipy
+simpy
+smart_open
+tqdm
