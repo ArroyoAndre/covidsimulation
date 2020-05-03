@@ -17,7 +17,7 @@ def test_run_simulations():
         use_cache=False,
         tqdm=tqdm,
         )
-    average_infected = stats.get_metric('infected')[1].tolist()
+    average_infected = stats.get_metric('infected').mean.tolist()
     assert average_infected[9] > average_infected[0] 
 
 def test_run_simulations_cached():
@@ -59,5 +59,5 @@ def test_run_simulations_with_hygiene_interventions():
         use_cache=False,
         tqdm=tqdm,
         )
-    average_infected = stats.get_metric('infected')[1].tolist()
+    average_infected = stats.get_metric('infected').mean.tolist()
     assert average_infected[9] > average_infected[0]

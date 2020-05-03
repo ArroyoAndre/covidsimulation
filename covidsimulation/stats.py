@@ -23,17 +23,23 @@
 
 
 from copy import copy
-from typing import List, Tuple, Dict, Iterable, Optional, Callable
+from dataclasses import dataclass
+from functools import partial
+from typing import List, Tuple, Dict, Iterable, Optional, Callable, Union
 import numpy as np
 from pathlib import Path
 import pickle
 
+from scipy.signal import savgol_filter
 from smart_open import open  # Allows for saving into S3 and other cool stuff
 
 from .random import RandomParametersState
 
-CONFIDENCE_RANGE = (20, 80)
+CONFIDENCE_RANGE = (10.0, 90.0)
 DEFAULT_START_DATE = '2020-03-01'
+DEFAULT_FILTER_WINDOW = 9
+DEFAULT_FILTER_ORDER = 3
+CONSTANT_METRICS = ['population']  # Metrics that don't change in daily view
 EPS = 1e-8  # To avoid division by zero
 
 
@@ -67,50 +73,70 @@ class Stats:
         self.start_date = start_date
         self.filter_indices = filter_indices
 
-    def _get_estatistica(self, indice_metrica, nome_populacao, nome_faixa) -> np.ndarray:
-        if nome_populacao:
-            indice_populacao = get_index(nome_populacao, self.population_names)
-            stats_populacao = self.stats[:, indice_populacao, indice_metrica, :, :]
+    def _get_measurement(self,
+                         metric_name: str,
+                         population_names: Optional[Union[str, Iterable[str]]],
+                         age_group_names: Optional[Union[str, Iterable[str]]],
+                         daily: bool = False,
+                         ) -> np.ndarray:
+        metric_index = get_index(metric_name, self.measurements)
+        if population_names:
+            if isinstance(population_names, str):
+                population_names = [population_names]
+            stats_populacao = np.zeros([self.stats.shape[0], self.stats.shape[3], self.stats.shape[4]])
+            for n in population_names:
+                indice_populacao = get_index(n, self.population_names)
+                stats_populacao += self.stats[:, indice_populacao, metric_index, :, :]
         else:
-            stats_populacao = self.stats[:, :, indice_metrica, :, :].sum(1)
-        if nome_faixa:
-            indice_faixa = get_index(nome_faixa, self.age_str)
-            stats_faixa = stats_populacao[:, indice_faixa, :]
+            stats_populacao = self.stats[:, :, metric_index, :, :].sum(1)
+        if age_group_names:
+            if isinstance(age_group_names, str):
+                age_group_names = [age_group_names]
+            stats_faixa = np.zeros([self.stats.shape[0], self.stats.shape[4]])
+            for n in age_group_names:
+                indice_faixa = get_index(n, self.age_str)
+                stats_faixa += stats_populacao[:, indice_faixa, :]
         else:
             stats_faixa = stats_populacao.sum(1)
+        if daily:
+            if metric_name not in CONSTANT_METRICS:
+                stats_faixa = stats_faixa[:, 1:] - stats_faixa[:, :-1]
+            else:
+                stats_faixa = stats_faixa[:, :-1]
         return stats_faixa
 
-    def _get_metric_raw(self, nome_metrica, nome_populacao, nome_faixa, fatores, diaria) -> np.ndarray:
-        numerator_name, denominator_name = self.metrics[nome_metrica]
-        indice_metrica = get_index(numerator_name, self.measurements)
-        estatistica = self._get_estatistica(indice_metrica, nome_populacao, nome_faixa)
+    def _get_metric_raw(self, metric_name, population_names, age_group_names, fatores, daily) -> np.ndarray:
+        numerator_name, denominator_name = self.metrics[metric_name]
+        estatistica = self._get_measurement(numerator_name, population_names, age_group_names, daily)
         if denominator_name:
-            indice_divisor = get_index(denominator_name, self.measurements)
-            divisor = self._get_estatistica(indice_divisor, nome_populacao, nome_faixa)
+            divisor = self._get_measurement(denominator_name, population_names, age_group_names, daily)
             estatistica = estatistica / (divisor + EPS)
         elif not fatores is None:
             estatistica *= fatores
-        if diaria:
-            estatistica = estatistica[:, 1:] - estatistica[:, :-1]
         return estatistica
 
     def get_metric(
             self,
-            nome_metrica,
-            nome_populacao=None,
-            nome_faixa=None,
-            fatores=None,
-            diaria=False,
-            confidence_range=CONFIDENCE_RANGE,
+            metric_name,
+            population_names: Optional[Union[str, Iterable[str]]] = None,
+            age_group_names: Optional[Union[str, Iterable[str]]] = None,
+            normalization_multipliers: np.ndarray = None,
+            daily: bool = False,
+            confidence_range: Tuple[float, float] = CONFIDENCE_RANGE,
+            filter_noise: bool = True,
     ):
-        metric = self._get_metric_raw(nome_metrica, nome_populacao, nome_faixa, fatores, diaria)
+        metric = self._get_metric_raw(metric_name, population_names, age_group_names, normalization_multipliers, daily)
         if self.filter_indices is not None:
             metric = metric[self.filter_indices, :]
-        return (
+        if filter_noise:
+            filter = partial(savgol_filter, window_length=DEFAULT_FILTER_WINDOW, polyorder=DEFAULT_FILTER_ORDER)
+        else:
+            filter = lambda x: x
+        return MetricResult(
             self,
-            np.median(metric, axis=0),
-            np.percentile(metric, confidence_range[0], axis=0),
-            np.percentile(metric, confidence_range[1], axis=0),
+            filter(np.median(metric, axis=0)),
+            filter(np.percentile(metric, confidence_range[0], axis=0)),
+            filter(np.percentile(metric, confidence_range[1], axis=0)),
         )
 
     def save(self, fname):
@@ -136,6 +162,14 @@ class Stats:
         sorted_indices = np.argsort(np.array(scores))
         num_best = self.stats.shape[0] - int((1.0 - fraction_to_keep) * self.stats.shape[0])
         self.filter_indices = sorted_indices[:num_best]
+
+
+@dataclass
+class MetricResult:
+    stats: Stats
+    mean: np.ndarray
+    low: np.ndarray
+    high: np.ndarray
 
 
 def get_index(key, keys):

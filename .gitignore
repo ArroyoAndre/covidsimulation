@@ -14,4 +14,7 @@ saved/
 .ipynb
 !Example.ipynb
 !examples/*.ipynb
+!test/fixtures
 .png
+.DS_Store
+*.code-workspace
