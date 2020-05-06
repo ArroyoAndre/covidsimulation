@@ -9,7 +9,7 @@ from ..early_stop import EarlyStop
 from ..intervention import SocialDistancingChange, HygieneAdoption, MaskUsage
 from ..parameters import Parameters
 from ..population import Population
-from ..random import UniformParameter, UniformIntParameter, TriangularParameter
+from ..random import LogUniformParameter, UniformParameter, UniformIntParameter, TriangularParameter
 from ..simulation import SimulationConstants
 
 age_structure = {
@@ -121,7 +121,7 @@ params = Parameters(
     population_segments,
     SimulationConstants(),
     interventions=interventions,
-    d0_infections=UniformParameter('rj_d0_infections', 3000, 10000),
+    d0_infections=LogUniformParameter('rj_d0_infections', 3000, 10000),
     start_date='2020-03-14',
     capacity_hospital_max=50000,
     capacity_hospital_beds=int(21000 * 0.8),

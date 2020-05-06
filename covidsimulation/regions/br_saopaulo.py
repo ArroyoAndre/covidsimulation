@@ -9,7 +9,7 @@ from ..early_stop import EarlyStop
 from ..intervention import SocialDistancingChange, DiagnosisDelayChange, HygieneAdoption, MaskUsage
 from ..parameters import Parameters
 from ..population import Population
-from ..random import UniformParameter, UniformIntParameter, TriangularParameter
+from ..random import LogUniformParameter, UniformParameter, UniformIntParameter, TriangularParameter
 from ..simulation import SimulationConstants
 
 age_structure = {
@@ -26,7 +26,6 @@ age_structure = {
 
 total_inhabitants = 20000000
 
-
 ISOLATION_PROPENSITY_PER_AGE = [
     0.0,  # 0
     0.0,  # 1
@@ -38,7 +37,6 @@ ISOLATION_PROPENSITY_PER_AGE = [
     2.0,  # 7
     2.0,  # 8
 ]
-
 
 ISOLATION_PROPENSITY_SOCIAL_CLASS_CD = -0.5
 ISOLATION_PROPENSITY_SOCIAL_CLASS_E = -1.4
@@ -53,7 +51,6 @@ ISOLATION_PROPENSITY_SOCIAL_CLASS_ABC = [
     1.8,  # 7
     1.8,  # 8
 ]
-
 
 PUBLICO_E = Population(
     name='classe_e',
@@ -121,7 +118,7 @@ params = Parameters(
     population_segments,
     SimulationConstants(),
     interventions=interventions,
-    d0_infections=UniformParameter('sp_d0_infections', 12000, 50000),
+    d0_infections=LogUniformParameter('sp_d0_infections', 12000, 50000),
     start_date='2020-03-13',
     capacity_hospital_max=60000,
     capacity_hospital_beds=20000,
@@ -136,19 +133,19 @@ sp_official_deaths = [
     (9, 22.0),  # 2020-03-22
     (16, 86.0),  # 2020-03-29
     (19, 120.0),  # 2020-04-01
-#    (23, 251.0),  # 2020-04-05
+    #    (23, 251.0),  # 2020-04-05
     (24, 284.0),  # 2020-04-06
-#    (25, 343.0),  # 2020-04-07
-#    (26, 392.0),  # 2020-04-08
-#    (27, 445.0),  # 2020-04-09
+    #    (25, 343.0),  # 2020-04-07
+    #    (26, 392.0),  # 2020-04-08
+    #    (27, 445.0),  # 2020-04-09
     (28, 481.0),  # 2020-04-10
     #    (29, 498.0),  # 2020-04-11
-#    (30, 524.0),  # 2020-04-12
+    #    (30, 524.0),  # 2020-04-12
     #   (31, 539.0),  # 2020-04-13
     (32, 616.0),  # 2020-04-14  * Estimativa
- #   (33, 673.0),  # 2020-04-15
- #   (34, 728.0),  # 2020-04-16
- #   (35, 783.0),  # 2020-04-17
+    #   (33, 673.0),  # 2020-04-15
+    #   (34, 728.0),  # 2020-04-16
+    #   (35, 783.0),  # 2020-04-17
     (36, 840.0),  # 2020-04-18
     (41, 1135.0),  # 2020-04-23
     (42, 1281.0),  # 2020-04-24
@@ -156,9 +153,10 @@ sp_official_deaths = [
 
 score_fn_deaths = partial(score_reported_deaths, expected_deaths=sp_official_deaths)
 
+
 def score_fn(stats):
-    return np.log((stats.get_metric('in_intensive_care', 'classe_abc+')[1][19]+1) /
-                  (stats.get_metric('in_intensive_care', 'classe_abc+')[1][31]+1)) ** 2 + score_fn_deaths(stats)
+    return np.log((stats.get_metric('in_intensive_care', 'classe_abc+')[1][19] + 1) /
+                  (stats.get_metric('in_intensive_care', 'classe_abc+')[1][31] + 1)) ** 2 + score_fn_deaths(stats)
 
 
 early_stops = [EarlyStop(24, 150, 500)]

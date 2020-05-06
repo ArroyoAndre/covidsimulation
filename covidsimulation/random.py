@@ -139,3 +139,13 @@ class UniformIntParameter(RandomParameter):
 
     def _get_random(self):
         return np.random.randint(self.min, self.max)
+
+
+@dataclass
+class LogUniformParameter(RandomParameter):
+    name: str
+    min: float
+    max: float
+
+    def _get_random(self):
+        return np.exp(np.random.uniform(np.log(self.min), np.log(self.max)))
