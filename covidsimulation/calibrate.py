@@ -1,14 +1,14 @@
 from typing import List, Tuple, Union, Iterable, Callable, Optional
 import numpy as np
-from datetime import date
 from functools import partial
 from copy import deepcopy
 from itertools import product
 from multiprocessing import Manager, Pool, cpu_count
 
 from . import Parameters, Stats
-from .simulation_engine import simulate_wrapped, combine_stats, show_progress, get_sim_params_list
+from .utils import get_date_from_isoformat
 from .random import RandomParametersState
+from .simulation_engine import simulate_wrapped, combine_stats, show_progress, get_sim_params_list
 
 
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
@@ -110,7 +110,7 @@ def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[Union[int, s
 
 
 def get_day_from_isoformat(isoformat_date: str, start_date: str):
-    return (date.fromisoformat(isoformat_date) - date.fromisoformat(start_date)).days
+    return (get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(start_date)).days
 
 
 def get_best_random_states(

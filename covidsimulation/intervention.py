@@ -1,10 +1,10 @@
 import abc
 from dataclasses import dataclass
-from datetime import date
 from typing import Any, Union
 
 import numpy as np
 
+from .utils import get_date_from_isoformat
 from .simulation import logit_transform_value
 from .simulation_environment import SimulationEnvironment
 
@@ -80,5 +80,6 @@ class HygieneAdoption(Intervention):
 
 
 def get_simulation_day_from_isoformat_date(isoformat_date: str, senv: SimulationEnvironment):
-    simulation_day = (date.fromisoformat(isoformat_date) - date.fromisoformat(senv.sim_params.start_date)).days
+    simulation_day = (
+                get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(senv.sim_params.start_date)).days
     return max(0, simulation_day)
