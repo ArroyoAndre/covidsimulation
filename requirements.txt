@@ -6,6 +6,7 @@ numpy
 pandas
 plotly
 pytest
+python-dateutil; python_version < '3.7'
 scipy
 simpy
 smart_open

@@ -99,19 +99,19 @@ PRIVADO = Population(
 population_segments = [PRIVADO, PUBLICO_CD, PUBLICO_E]
 
 interventions = [
-    SocialDistancingChange(0, 0.2),  # 2020-03-13
-    SocialDistancingChange(3, 0.4),  # 2020-03-16
-    SocialDistancingChange(9, 0.68),  # 2020-03-22
-    SocialDistancingChange(16, 0.66),  # 2020-03-29
-    SocialDistancingChange(23, 0.62),  # 2020-04-05
-    SocialDistancingChange(30, 0.60),  # 2020-04-12
-    SocialDistancingChange(42, 0.55),  # 2020-04-24
-    DiagnosisDelayChange(18, 14.0),  # Reductions in confirmations queue around 2020-04-6 - 16
-    DiagnosisDelayChange(25, 10.0),
-    DiagnosisDelayChange(33, 5.0),
-    HygieneAdoption(0, TriangularParameter('hygiene_adoption', 0.5, 0.7, 0.9)),
-    MaskUsage(16, TriangularParameter('mask_adoption', 0.5, 0.7, 0.9) * 0.5),
-    MaskUsage(40, TriangularParameter('mask_adoption', 0.5, 0.7, 0.9)),
+    SocialDistancingChange('2020-03-13', 0.2),
+    SocialDistancingChange('2020-03-16', 0.4),
+    SocialDistancingChange('2020-03-22', 0.68),
+    SocialDistancingChange('2020-03-29', 0.66),
+    SocialDistancingChange('2020-04-05', 0.62),
+    SocialDistancingChange('2020-04-12', 0.60),
+    SocialDistancingChange('2020-04-24', 0.55),
+    DiagnosisDelayChange('2020-04-06', 14.0),  # Reductions in confirmations queue around 2020-04-6 - 16
+    DiagnosisDelayChange('2020-04-15', 10.0),
+    DiagnosisDelayChange('2020-04-22', 5.0),
+    HygieneAdoption('2020-03-13', TriangularParameter('hygiene_adoption', 0.5, 0.7, 0.9)),
+    MaskUsage('2020-03-29', TriangularParameter('mask_adoption', 0.5, 0.7, 0.9) * 0.5),
+    MaskUsage('2020-04-24', TriangularParameter('mask_adoption', 0.5, 0.7, 0.9)),
 ]
 
 params = Parameters(
@@ -128,27 +128,18 @@ params = Parameters(
 )
 
 sp_official_deaths = [
-    (0, 0.0),  # 2020-03-13
-    (4, 4.0),  # 2020-03-17
-    (9, 22.0),  # 2020-03-22
-    (16, 86.0),  # 2020-03-29
-    (19, 120.0),  # 2020-04-01
-    #    (23, 251.0),  # 2020-04-05
-    (24, 284.0),  # 2020-04-06
-    #    (25, 343.0),  # 2020-04-07
-    #    (26, 392.0),  # 2020-04-08
-    #    (27, 445.0),  # 2020-04-09
-    (28, 481.0),  # 2020-04-10
-    #    (29, 498.0),  # 2020-04-11
-    #    (30, 524.0),  # 2020-04-12
-    #   (31, 539.0),  # 2020-04-13
-    (32, 616.0),  # 2020-04-14  * Estimativa
-    #   (33, 673.0),  # 2020-04-15
-    #   (34, 728.0),  # 2020-04-16
-    #   (35, 783.0),  # 2020-04-17
-    (36, 840.0),  # 2020-04-18
-    (41, 1135.0),  # 2020-04-23
-    (42, 1281.0),  # 2020-04-24
+    ('2020-03-13', 0.0),
+    ('2020-03-17', 4.0),
+    ('2020-03-22', 22.0),
+    ('2020-03-29', 86.0),
+    ('2020-04-01', 120.0),
+    ('2020-04-06', 284.0),
+    ('2020-04-10', 481.0),
+    ('2020-04-18', 840.0),
+    ('2020-04-23', 1135.0),
+    ('2020-04-24', 1281.0),
+    ('2020-04-28', 1728.0),
+    ('2020-05-05', 2425.0),
 ]
 
 score_fn_deaths = partial(score_reported_deaths, expected_deaths=sp_official_deaths)

@@ -1,15 +1,17 @@
 import abc
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 
+from .utils import get_date_from_isoformat
 from .simulation import logit_transform_value
 from .simulation_environment import SimulationEnvironment
 
+
 @dataclass
 class Intervention(abc.ABC):
-    simulation_day: int
+    simulation_day: Union[int, str]
     parameter: Any
 
     @abc.abstractmethod
@@ -17,6 +19,8 @@ class Intervention(abc.ABC):
         pass
 
     def setup(self, senv: SimulationEnvironment):
+        if isinstance(self.simulation_day, str):
+            self.simulation_day = get_simulation_day_from_isoformat_date(self.simulation_day, senv)
         senv.env.process(self._run(senv))
 
     def _run(self, senv: SimulationEnvironment):
@@ -59,6 +63,7 @@ class MaskUsage(Intervention):
             else:
                 person.masks_usage = 0.0
 
+
 class HygieneAdoption(Intervention):
 
     def apply(self, senv: SimulationEnvironment) -> None:
@@ -72,3 +77,9 @@ class HygieneAdoption(Intervention):
                 )
             else:
                 person.hygiene_adoption = 0.0
+
+
+def get_simulation_day_from_isoformat_date(isoformat_date: str, senv: SimulationEnvironment):
+    simulation_day = (
+                get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(senv.sim_params.start_date)).days
+    return max(0, simulation_day)

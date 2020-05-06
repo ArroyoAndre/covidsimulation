@@ -1,14 +1,14 @@
-from typing import List, Tuple, Dict, Iterable, Callable, Optional
+from typing import List, Tuple, Union, Iterable, Callable, Optional
 import numpy as np
-from itertools import cycle
 from functools import partial
 from copy import deepcopy
 from itertools import product
 from multiprocessing import Manager, Pool, cpu_count
 
 from . import Parameters, Stats
-from .simulation_engine import simulate_wrapped, combine_stats, show_progress, get_sim_params_list
+from .utils import get_date_from_isoformat
 from .random import RandomParametersState
+from .simulation_engine import simulate_wrapped, combine_stats, show_progress, get_sim_params_list
 
 
 LSE_REGULARIZATOR = 60.0  # Logarithmic Squared Error regularization factor, to diminish the weight
@@ -98,13 +98,19 @@ def get_simulation_parameters(sim_params: Parameters, parameters_to_try: List[Tu
     return sim_params_list, combinations
 
 
-def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[int, float]]):
+def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[Union[int, str], float]]):
     metric = stats.get_metric('confirmed_deaths')[1]
     lse = 0.0
     for day, reporded_deaths in expected_deaths:
+        if isinstance(day, str):
+            day = get_day_from_isoformat(day, stats.start_date)
         le = np.log((metric[day] + LSE_REGULARIZATOR) / (reporded_deaths + LSE_REGULARIZATOR))
         lse += le ** 2
     return lse
+
+
+def get_day_from_isoformat(isoformat_date: str, start_date: str):
+    return (get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(start_date)).days
 
 
 def get_best_random_states(
