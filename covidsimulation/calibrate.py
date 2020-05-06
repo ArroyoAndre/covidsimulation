@@ -99,7 +99,7 @@ def get_simulation_parameters(sim_params: Parameters, parameters_to_try: List[Tu
 
 
 def score_reported_deaths(stats: Stats, expected_deaths: List[Tuple[Union[int, str], float]]):
-    metric = stats.get_metric('confirmed_deaths')[1]
+    metric = stats.get_metric('confirmed_deaths').mean
     lse = 0.0
     for day, reporded_deaths in expected_deaths:
         if isinstance(day, str):
