@@ -18,7 +18,7 @@ from .simulation_environment import SimulationEnvironment
 from .metrics import METRICS
 
 SIMULATION_ENGINE_VERSION = '0.0.3'
-
+MAX_WAIT_UNTIL_D0 = 90
 
 def get_stats_matrix(populations: Dict, duration):
     num_populations = len(populations)
@@ -170,7 +170,10 @@ def simulate(
     for early_stop in sim_params.early_stops or []:
         env.process(process_early_stop(senv, early_stop))
     while not senv.d0:
-        env.run(until=env.now + 1)
+        if env.now < MAX_WAIT_UNTIL_D0:
+            env.run(until=env.now + 1)
+        else:
+            senv.d0 = MAX_WAIT_UNTIL_D0
     try:
         env.run(until=duration + senv.d0 + 0.011)
     except EarlyStopError:
