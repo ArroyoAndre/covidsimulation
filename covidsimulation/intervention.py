@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -11,7 +11,8 @@ from .simulation_environment import SimulationEnvironment
 
 @dataclass
 class Intervention(abc.ABC):
-    simulation_day: Union[int, str]
+    simulation_day: Optional[
+        Union[int, str]]  # If simulation_day is None, intervention will be applied at start of simulation
     parameter: Any
 
     @abc.abstractmethod
@@ -24,9 +25,10 @@ class Intervention(abc.ABC):
         senv.env.process(self._run(senv))
 
     def _run(self, senv: SimulationEnvironment):
-        yield senv.env.timeout(self.simulation_day)
-        while senv.d0 is None or self.simulation_day > senv.env.now - senv.d0:
-            yield senv.env.timeout(1.0)
+        if self.simulation_day is not None:
+            yield senv.env.timeout(self.simulation_day)
+            while senv.d0 is None or self.simulation_day > senv.env.now - senv.d0:
+                yield senv.env.timeout(1.0)
         self.apply(senv)
 
 
@@ -81,5 +83,5 @@ class HygieneAdoption(Intervention):
 
 def get_simulation_day_from_isoformat_date(isoformat_date: str, senv: SimulationEnvironment):
     simulation_day = (
-                get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(senv.sim_params.start_date)).days
+            get_date_from_isoformat(isoformat_date) - get_date_from_isoformat(senv.sim_params.start_date)).days
     return max(0, simulation_day)
