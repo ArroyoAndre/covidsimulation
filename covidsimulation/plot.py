@@ -1,6 +1,8 @@
 import datetime
-from typing import Sequence, Tuple, Optional
+from copy import deepcopy
+from typing import Sequence, Tuple, Optional, Union
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -15,6 +17,23 @@ PLOT_COLORS = [
     ('rgba(0,128,240,1)', 'rgba(0,128,240,0.25)'),
     ('rgba(0,255,0,1)', 'rgba(0,255,0,0.25)'),
 ]
+
+
+class Series:
+    x: Sequence[datetime.date]
+    y: np.ndarray
+
+    def __init__(self, y: np.ndarray, x: Optional[Sequence] = None,
+                 start_date: Optional[Union[str, datetime.date]] = None):
+        self.y = deepcopy(y)
+        if (x is None) and (start_date is None):
+            raise ValueError('Either x or start_date must be specified')
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = datetime.date.fromisoformat(start_date)
+            self.x = [start_date + datetime.timedelta(days=i) for i in range(len(self.y))]
+        else:
+            self.x = x
 
 
 def get_population_plot(fig, pop_stats: MetricResult, pop_name, color_index, stop, start, show_confidence_interval):
