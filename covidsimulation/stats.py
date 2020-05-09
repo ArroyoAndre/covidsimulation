@@ -33,6 +33,7 @@ import pickle
 from scipy.signal import savgol_filter
 from smart_open import open  # Allows for saving into S3 and other cool stuff
 
+from .plot import Series
 from .random import RandomParametersState
 
 CONFIDENCE_RANGE = (10.0, 90.0)
@@ -134,9 +135,9 @@ class Stats:
             filter = lambda x: x
         return MetricResult(
             self,
-            filter(np.median(metric, axis=0)),
-            filter(np.percentile(metric, confidence_range[0], axis=0)),
-            filter(np.percentile(metric, confidence_range[1], axis=0)),
+            Series(filter(np.median(metric, axis=0)), start_date=self.start_date),
+            Series(filter(np.percentile(metric, confidence_range[0], axis=0)), start_date=self.start_date),
+            Series(filter(np.percentile(metric, confidence_range[1], axis=0)), start_date=self.start_date),
         )
 
     def save(self, fname):
@@ -167,9 +168,9 @@ class Stats:
 @dataclass
 class MetricResult:
     stats: Stats
-    mean: np.ndarray
-    low: np.ndarray
-    high: np.ndarray
+    mean: Series
+    low: Series
+    high: Series
 
 
 def get_index(key, keys):

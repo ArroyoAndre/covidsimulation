@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from .stats import MetricResult
-
 PLOT_COLORS = [
     ('rgba(0,0,255,1)', 'rgba(0,0,255,0.25)'),
     ('rgba(255,0,0,1)', 'rgba(255,0,0,0.25)'),
@@ -36,7 +34,7 @@ class Series:
             self.x = x
 
 
-def get_population_plot(fig, pop_stats: MetricResult, pop_name, color_index, stop, start, show_confidence_interval):
+def get_population_plot(fig, pop_stats: 'MetricResult', pop_name, color_index, stop, start, show_confidence_interval):
     days = [
         {'mean': x[0], 'min': x[1], 'max': x[2]} for x in zip(pop_stats.mean, pop_stats.low, pop_stats.high)
     ]
