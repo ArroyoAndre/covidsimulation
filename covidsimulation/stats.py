@@ -172,6 +172,12 @@ class MetricResult:
     low: Series
     high: Series
 
+    def __len__(self):
+        return 3
+
+    def __getitem__(self, item):
+        return (self.mean, self.low, self.high)[item]
+
 
 def get_index(key, keys):
     for i, value in enumerate(keys):
