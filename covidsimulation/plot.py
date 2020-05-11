@@ -57,9 +57,13 @@ class Series:
         return self.y.tolist()
 
 
+def get_stop_index(series, stop):
+    stop_index = series.get_index(stop) + 1 if stop else len(series)
+    return min(stop_index, len(series))
+
 def plot_line(fig, series, pop_name, color_index, stop, start):
     start_index = series.get_index(start) if start else 0
-    stop_index = series.get_index(stop) if stop else len(series)
+    stop_index = get_stop_index(series, stop)
     fig.add_trace(go.Scatter(
         x=series.x[start_index:stop_index],
         y=series.y[start_index:stop_index],
@@ -77,7 +81,7 @@ def concat_seq(s1, s2):
 def plot_confidence_range(fig, series_low, series_high, legend, color_index, stop, start):
     assert len(series_low.x) == len(series_high.x)
     start_index = series_low.get_index(start) if start else 0
-    stop_index = series_low.get_index(stop) if stop else len(series_low)
+    stop_index = get_stop_index(series_low, stop)
     plot_indices = list(range(start_index, stop_index))
     fig.add_trace(go.Scatter(
         x=concat_seq(series_high.x[plot_indices], series_low.x[reversed(plot_indices)]),
