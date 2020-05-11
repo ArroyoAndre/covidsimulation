@@ -893,7 +893,7 @@ MEASUREMENTS = [
     'in_hospital_bed',
     'contagious',
     'contagion_ended',
-    'transmited',
+    'transmitted',
     'susceptible',
     'in_ward_bed',
     'confirmed_in_intensive_care',
