@@ -215,6 +215,7 @@ cdef class SimulationConstants:
     cdef public float time_to_hospitalization_severe_proportion
     cdef public float immunization_period
     cdef public float individual_daily_influence_in_social_distancing
+    cdef public float death_confirmation_delay
 
     def __cinit__(self, *args, **kwargs):  # DEFAULT SIMULATION PARAMENTERS are set here
         self.home_contamination_daily_probability = 0.3
@@ -232,6 +233,7 @@ cdef class SimulationConstants:
         self.time_to_hospitalization_severe_proportion = 0.5
         self.immunization_period = 0.0  # Mean immunization duration. Permanent if 0.0
         self.individual_daily_influence_in_social_distancing = 0.2
+        self.death_confirmation_delay = 1.5
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -305,6 +307,7 @@ cdef class Person:
     cdef public bool contagious
     cdef public bool in_isolation
     cdef public bool dead
+    cdef public bool confirmed_death
     cdef public bool active
     cdef public bool diagnosed
     cdef public float infection_date
@@ -339,7 +342,8 @@ cdef class Person:
         self.in_incubation = False
         self.contagious = False
         self.in_isolation = False
-        self.dead = False 
+        self.dead = False
+        self.confirmed_death = False
         self.active = False  # infected that neither died nor recovered yet
         self.diagnosed = False
         self.infection_date = 0.0
@@ -417,7 +421,7 @@ cdef class Person:
 
     cdef void configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
-        time_until_hospitalization = time_until_outcome * 0.33  # 5 dias
+        time_until_hospitalization = time_until_outcome * 0.4  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
         time_until_icu_and_ventilation = time_until_outcome * 0.47  # 8 dias na ventilacao
         self.process(self.run_ventilation(time_until_icu_and_ventilation))
@@ -436,12 +440,12 @@ cdef class Person:
         self.process(self.run_leave_hospital(time_until_outcome))
 
     cdef void configure_evolution_icu(self):
-        time_until_outcome = np.random.weibull(2) * 34  # 30 dias 
-        time_until_hospitalization = time_until_outcome * 0.2  # 6 dias
+        time_until_outcome = np.random.weibull(2) * 23  # 20 dias
+        time_until_hospitalization = time_until_outcome * 0.3  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
-        time_until_icu = time_until_outcome * 0.266  # 8 dias
+        time_until_icu = time_until_outcome * 0.4  # 8 dias
         self.process(self.run_enter_icu(time_until_icu))
-        time_until_icu_ends = time_until_outcome * 0.717  # 20 dias
+        time_until_icu_ends = time_until_outcome * 0.7
         self.process(self.run_leave_icu(time_until_icu_ends))
         self.process(self.run_leave_hospital(time_until_outcome))
 
@@ -473,6 +477,14 @@ cdef class Person:
         cdef float time_for_diagnosis = np.random.weibull(4.0) * diagnosis_delay
         yield self.timeout(diagnosis_delay)
         self.diagnosed = True
+        if self.dead:
+            self.process(self.wait_for_death_confirmation())
+
+    def wait_for_death_confirmation(self):
+        cdef float time_for_confirmation = np.random.weibull(4.0) * self.sim_consts.death_confirmation_delay
+        yield self.timeout(time_for_confirmation)
+        self.confirmed_death = True
+
 
     def run_hospitalization(self, time_until_hospitalization):
         yield self.timeout(time_until_hospitalization)
@@ -645,6 +657,8 @@ cdef class Person:
         self.susceptible = False
         self.dead = True
         self.death_date = self.env.now
+        if self.diagnosed:
+            self.process(self.wait_for_death_confirmation())
     
     def run_contagion_home(self):
         while self.contagious and not self.hospitalized:
@@ -801,7 +815,7 @@ cdef int get_deaths(Person person):
     return 1 if person.dead else 0
 
 cdef int get_confirmed_deaths(Person person):
-    return 1 if person.dead and person.diagnosed else 0
+    return 1 if person.confirmed_death else 0
 
 cdef int get_hospitalized(Person person):
     return 1 if person.hospitalized else 0
@@ -814,6 +828,9 @@ cdef int get_in_icu(Person person):
 
 cdef int get_in_hospital_bed(Person person):
     return 1 if person.in_hospital_bed else 0
+
+cdef int get_in_ward_bed(Person person):
+    return 1 if person.in_hospital_bed and not person.in_icu else 0
 
 cdef int get_contagious(Person person):
     return 1 if person.contagious else 0
@@ -854,7 +871,7 @@ fmetrics[10] = &get_contagious
 fmetrics[11] = &get_contagion_ended
 fmetrics[12] = &get_rt
 fmetrics[13] = &get_susceptible
-fmetrics[14] = &get_in_hospital_bed
+fmetrics[14] = &get_in_ward_bed
 fmetrics[15] = &get_confirmed_in_icu
 fmetrics[16] = &get_confirmed_inpatients
 
@@ -874,7 +891,7 @@ MEASUREMENTS = [
     'contagion_ended',
     'transmited',
     'susceptible',
-    'in_hospital_bed',
+    'in_ward_bed',
     'confirmed_in_intensive_care',
     'confirmed_inpatients',
 ]
