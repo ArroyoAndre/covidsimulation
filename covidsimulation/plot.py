@@ -20,10 +20,10 @@ PLOT_COLORS = [
 
 
 class Series:
-    x: Sequence[datetime.date]
+    x: np.ndarray
     y: np.ndarray
 
-    def __init__(self, y: np.ndarray, x: Optional[Sequence] = None,
+    def __init__(self, y: np.ndarray, x: Optional[Union[Sequence, np.ndarray]] = None,
                  start_date: Optional[Union[str, datetime.date]] = None):
         self.y = deepcopy(y)
         if (x is None) and (start_date is None):
@@ -31,9 +31,9 @@ class Series:
         if start_date:
             if isinstance(start_date, str):
                 start_date = get_date_from_isoformat(start_date)
-            self.x = [start_date + datetime.timedelta(days=i) for i in range(len(self.y))]
+            self.x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
         else:
-            self.x = x
+            self.x = x if isinstance(x, np.ndarray) else np.array(x)
 
     def __getitem__(self, item):
         item = self.get_index(item)
