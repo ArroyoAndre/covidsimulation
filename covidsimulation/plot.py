@@ -75,7 +75,7 @@ def concat_seq(s1, s2):
 
 
 def plot_confidence_range(fig, series_low, series_high, legend, color_index, stop, start):
-    assert series_low.x == series_high.x
+    assert len(series_low.x) == len(series_high.x)
     start_index = series_low.get_index(start) if start else 0
     stop_index = series_low.get_index(stop) if stop else len(series_low)
     plot_indices = list(range(start_index, stop_index))
