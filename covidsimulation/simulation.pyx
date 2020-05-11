@@ -485,7 +485,6 @@ cdef class Person:
         yield self.timeout(time_for_confirmation)
         self.confirmed_death = True
 
-
     def run_hospitalization(self, time_until_hospitalization):
         yield self.timeout(time_until_hospitalization)
         if self.dead:
@@ -495,6 +494,7 @@ cdef class Person:
             yield from self.request_hospital_bed()
         else:
             self.hospitalized = True
+            self.in_hospital_bed = True
             self.hospitalization_date = self.env.now
             self.request_diagnosis()
   
@@ -850,10 +850,13 @@ cdef int get_confirmed_inpatients(Person person):
 cdef int get_confirmed_in_icu(Person person):
     return 1 if person.in_icu and person.diagnosed else 0
 
+cdef int get_confirmed_in_ward_bed(Person person):
+    return 1 if person.in_hospital_bed and person.diagnosed and not person.in_icu else 0
+
 ctypedef int (*int_from_person)(Person)
 
 cdef enum:
-    NUM_FUNCTIONS = 17
+    NUM_FUNCTIONS = 18
 
 cdef int_from_person[NUM_FUNCTIONS] fmetrics
 
@@ -874,6 +877,7 @@ fmetrics[13] = &get_susceptible
 fmetrics[14] = &get_in_ward_bed
 fmetrics[15] = &get_confirmed_in_icu
 fmetrics[16] = &get_confirmed_inpatients
+fmetrics[17] = &get_confirmed_in_ward_bed
 
 
 MEASUREMENTS = [
@@ -894,6 +898,7 @@ MEASUREMENTS = [
     'in_ward_bed',
     'confirmed_in_intensive_care',
     'confirmed_inpatients',
+    'confirmed_in_ward_bed',
 ]
 
 
