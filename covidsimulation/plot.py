@@ -35,7 +35,7 @@ class Series:
             self._x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
         else:
             self._x = x if isinstance(x, np.ndarray) else np.array(x)
-        self.x = np.array(to_datetime(d) for d in self._x)
+        self.x = np.array([to_datetime(d) for d in self._x])
 
     def __getitem__(self, item):
         item = self.get_index(item)
