@@ -21,6 +21,7 @@ PLOT_COLORS = [
 
 class Series:
     _x: np.ndarray
+    x: np.ndarray
     y: np.ndarray
 
     def __init__(self, y: np.ndarray, x: Optional[Union[Sequence, np.ndarray]] = None,
@@ -34,6 +35,7 @@ class Series:
             self._x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
         else:
             self._x = x if isinstance(x, np.ndarray) else np.array(x)
+        self.x = np.array(to_datetime(d) for d in self._x)
 
     def __getitem__(self, item):
         item = self.get_index(item)
@@ -45,10 +47,6 @@ class Series:
     @property
     def start_date(self):
         return self._x[0]
-
-    @property
-    def x(self):
-        return np.array(to_datetime(d) for d in self._x)
 
     def get_index(self, x_value):
         if isinstance(x_value, str):
