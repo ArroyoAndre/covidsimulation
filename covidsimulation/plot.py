@@ -20,7 +20,7 @@ PLOT_COLORS = [
 
 
 class Series:
-    x: np.ndarray
+    _x: np.ndarray
     y: np.ndarray
 
     def __init__(self, y: np.ndarray, x: Optional[Union[Sequence, np.ndarray]] = None,
@@ -31,9 +31,9 @@ class Series:
         if start_date:
             if isinstance(start_date, str):
                 start_date = get_date_from_isoformat(start_date)
-            self.x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
+            self._x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
         else:
-            self.x = x if isinstance(x, np.ndarray) else np.array(x)
+            self._x = x if isinstance(x, np.ndarray) else np.array(x)
 
     def __getitem__(self, item):
         item = self.get_index(item)
@@ -44,7 +44,11 @@ class Series:
 
     @property
     def start_date(self):
-        return self.x[0]
+        return self._x[0]
+
+    @property
+    def x(self):
+        return np.array(to_datetime(d) for d in self._x)
 
     def get_index(self, x_value):
         if isinstance(x_value, str):
@@ -55,6 +59,10 @@ class Series:
 
     def tolist(self):
         return self.y.tolist()
+
+
+def to_datetime(x: datetime.date) -> datetime.datetime:
+    return datetime.datetime(*x.timetuple()[:3])
 
 
 def get_stop_index(series, stop):
