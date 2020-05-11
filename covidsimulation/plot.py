@@ -61,6 +61,7 @@ def get_stop_index(series, stop):
     stop_index = series.get_index(stop) + 1 if stop else len(series)
     return min(stop_index, len(series))
 
+
 def plot_line(fig, series, pop_name, color_index, stop, start):
     start_index = series.get_index(start) if start else 0
     stop_index = get_stop_index(series, stop)
@@ -84,8 +85,8 @@ def plot_confidence_range(fig, series_low, series_high, legend, color_index, sto
     stop_index = get_stop_index(series_low, stop)
     plot_indices = list(range(start_index, stop_index))
     fig.add_trace(go.Scatter(
-        x=concat_seq(series_high.x[plot_indices], series_low.x[reversed(plot_indices)]),
-        y=concat_seq(series_high.y[plot_indices], series_low.y[reversed(plot_indices)]),
+        x=concat_seq(series_high.x[plot_indices], series_low.x[list(reversed(plot_indices))]),
+        y=concat_seq(series_high.y[plot_indices], series_low.y[list(reversed(plot_indices))]),
         fill='toself',
         fillcolor=PLOT_COLORS[color_index][1],
         line_color=PLOT_COLORS[color_index][1],
