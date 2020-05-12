@@ -68,7 +68,7 @@ class Series:
         if isinstance(x_value, str):
             x_value = get_date_from_isoformat(x_value)
         if isinstance(x_value, datetime.date):
-            x_value = (x_value - self.start_date).days
+            x_value = min(max((x_value - self.start_date).days, 0), len(self._x) - 1)
         return x_value
 
     def tolist(self):
