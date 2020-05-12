@@ -33,7 +33,7 @@ import pickle
 from scipy.signal import savgol_filter
 from smart_open import open  # Allows for saving into S3 and other cool stuff
 
-from .plot import Series
+from .series import Series
 from .random import RandomParametersState
 
 CONFIDENCE_RANGE = (10.0, 90.0)
