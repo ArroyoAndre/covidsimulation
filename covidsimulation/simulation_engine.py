@@ -195,7 +195,8 @@ def get_sim_params_list(sim_params: Parameters, random_states: List[RandomParame
     for random_state, i in zip(random_states_iter, range(n)):
         sim_params_with_state = sim_params.clone()
         sim_params_with_state.random_parameters_state = random_state
-        sim_params_list.append((i, sim_params_with_state))
+        sim_number = int(i / len(random_states)) if random_states else i
+        sim_params_list.append((sim_number, sim_params_with_state))
     return sim_params_list
 
 

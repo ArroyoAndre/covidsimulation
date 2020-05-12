@@ -1,9 +1,10 @@
-import datetime
-from typing import Sequence, Tuple, Optional
+from functools import partial
+from typing import Sequence, Tuple, Optional, Union
 
-import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 
+from .series import Series
 from .stats import MetricResult
 
 PLOT_COLORS = [
@@ -17,46 +18,36 @@ PLOT_COLORS = [
 ]
 
 
-def get_population_plot(fig, pop_stats: MetricResult, pop_name, color_index, stop, start, show_confidence_interval):
-    days = [
-        {'mean': x[0], 'min': x[1], 'max': x[2]} for x in zip(pop_stats.mean, pop_stats.low, pop_stats.high)
-    ]
-    if stop:
-        days = days[:stop]
-    if start:
-        days = days[start:]
-    df = pd.DataFrame(days)
-    df['x'] = pd.date_range(pop_stats.stats.start_date, periods=len(days)).to_pydatetime()
-    if start:
-        df['x'] += datetime.timedelta(days=start)
-    x = df['x']
-    x_rev = x[::-1]
-    x_plot = pd.concat([x, x_rev], ignore_index=True)
-    y1 = df['mean']
-    if show_confidence_interval:
-        y1_upper = df['max']
-        y1_lower = df['min']
-        y1_lower = y1_lower[::-1]
-        y1_plot = pd.concat([y1_upper, y1_lower], ignore_index=True)
-        fig.add_trace(go.Scatter(
-            x=x_plot,
-            y=y1_plot,
-            fill='toself',
-            fillcolor=PLOT_COLORS[color_index][1],
-            line_color=PLOT_COLORS[color_index][1],
-            showlegend=False,
-            name=pop_name,
-        ))
+def plot_line(fig, series, pop_name, color_index):
     fig.add_trace(go.Scatter(
-        x=x,
-        y=y1,
+        x=series.x,
+        y=series.y,
         line_color=PLOT_COLORS[color_index][0],
         name=pop_name,
     ))
 
 
+def concat_seq(s1, s2):
+    if isinstance(s1, np.ndarray):
+        return np.stack([s1, s2]).reshape(len(s1) + len(s2))
+    return list(s1) + list(s2)
+
+
+def plot_confidence_range(fig, series_low, series_high, legend, color_index):
+    assert len(series_low.x) == len(series_high.x)
+    fig.add_trace(go.Scatter(
+        x=concat_seq(series_high.x, series_low.x[::-1]),
+        y=concat_seq(series_high.y, series_low.y[::-1]),
+        fill='toself',
+        fillcolor=PLOT_COLORS[color_index][1],
+        line_color=PLOT_COLORS[color_index][1],
+        showlegend=legend is not None,
+        name=legend,
+    ))
+
+
 def plot(
-        pop_stats_name_tuples: Sequence[Tuple[MetricResult, str]],
+        pop_stats_name_tuples: Sequence[Tuple[Union[MetricResult, Series, Sequence[Series]], str]],
         title: str,
         log_scale: bool = False,
         size: Optional[int] = None,
@@ -67,11 +58,36 @@ def plot(
         show_confidence_interval: bool = True,
 ):
     fig = go.FigureWidget()
-    for color_index, (pop_stats, pop_name) in enumerate(pop_stats_name_tuples):
+    area_fns = []
+    line_fns = []
+
+    for color_index, (data, pop_name) in enumerate(pop_stats_name_tuples):
         color_index = color_index % len(PLOT_COLORS)
         if cindex is not None:
             color_index = cindex
-        get_population_plot(fig, pop_stats, pop_name, color_index, stop, start, show_confidence_interval)
+        if isinstance(data, Series) or (len(data) == 1):
+            line_fn = partial(plot_line, fig, data[0].trim(start, stop), pop_name, color_index)
+            line_fns.append(line_fn)
+        elif len(data) == 3:
+            if show_confidence_interval:
+                area_fn = partial(plot_confidence_range, fig, data[1].trim(start, stop), data[2].trim(start, stop),
+                                  None, color_index)
+                area_fns.append(area_fn)
+            line_fn = partial(plot_line, fig, data[0].trim(start, stop), pop_name, color_index)
+            line_fns.append(line_fn)
+        elif len(data) == 2:
+            area_fn = partial(plot_confidence_range, fig, data[0].trim(start, stop), data[1].trim(start, stop),
+                              pop_name, color_index)
+            area_fns.append(area_fn)
+        else:
+            raise ValueError('Invalid number of elements to plot')
+
+    for area_fn in area_fns:
+        area_fn()
+
+    for line_fn in line_fns:
+        line_fn()
+
     fig.update_layout(
         title=title)
     if ymax:

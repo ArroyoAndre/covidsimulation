@@ -57,7 +57,7 @@ PUBLICO_E = Population(
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i] + ISOLATION_PROPENSITY_SOCIAL_CLASS_E, 0.7,
-                 diagnosis_delay=18.0, chance_of_diagnosis_if_moderate=0.0, hygiene_max_adherence=0.33)
+                 diagnosis_delay=14.0, chance_of_diagnosis_if_moderate=0.0, hygiene_max_adherence=0.33)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([0.16, 0.23, 0.26, 0.17, 0.12, 0.06]),
@@ -72,7 +72,7 @@ PUBLICO_CD = Population(
     age_probabilities=np.array(list(age_structure.values())),
     age_groups=[
         AgeGroup(i, OUTCOME_THRESHOLDS[i], ISOLATION_PROPENSITY_PER_AGE[i], 0.9,
-                 diagnosis_delay=18.0, chance_of_diagnosis_if_moderate=0.15)
+                 diagnosis_delay=14.0, chance_of_diagnosis_if_moderate=0.15)
         for i, nome_faixa in enumerate(age_structure.keys())
     ],
     home_size_probabilities=np.array([0.19, 0.25, 0.26, 0.16, 0.10, 0.04]),
@@ -106,9 +106,9 @@ interventions = [
     SocialDistancingChange('2020-04-05', 0.62),
     SocialDistancingChange('2020-04-12', 0.60),
     SocialDistancingChange('2020-04-24', 0.55),
-    DiagnosisDelayChange('2020-04-06', 14.0),  # Reductions in confirmations queue around 2020-04-6 - 16
-    DiagnosisDelayChange('2020-04-15', 10.0),
-    DiagnosisDelayChange('2020-04-22', 5.0),
+    DiagnosisDelayChange('2020-04-06', 10.0),  # Reductions in confirmations queue around 2020-04-6 - 16
+    DiagnosisDelayChange('2020-04-15', 8.0),
+    DiagnosisDelayChange('2020-04-22', 6.5),
     HygieneAdoption('2020-03-13', TriangularParameter('hygiene_adoption', 0.5, 0.7, 0.9)),
     MaskUsage('2020-03-29', TriangularParameter('mask_adoption', 0.5, 0.7, 0.9) * 0.5),
     MaskUsage('2020-04-24', TriangularParameter('mask_adoption', 0.5, 0.7, 0.9)),

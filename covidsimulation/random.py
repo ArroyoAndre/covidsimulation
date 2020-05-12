@@ -61,7 +61,7 @@ class RandomParameter(abc.ABC):
         return ParameterSum([self, other])
 
     def __radd__(self, other):
-        if other:
+        if not other:
             return self
         return self.__add__(other)
 
@@ -71,9 +71,7 @@ class RandomParameter(abc.ABC):
         return ParameterProduct([self, other])
 
     def __rmul__(self, other):
-        if other:
-            return self
-        return self.__add__(other)
+        return self.__mul__(other)
 
 
 @dataclass

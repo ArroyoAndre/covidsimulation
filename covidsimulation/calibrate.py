@@ -170,3 +170,15 @@ def get_best_random_states(
     best = np.argsort(np.array(scores))
     num_scores = len(scores) - int((1.0 - p) * len(scores))
     return [all_stats[i][1] for i in best[:num_scores]]
+
+
+def randomize_states(random_states, multiplier: int=2):
+    new_states = []
+    for _ in range(1, multiplier):
+        for state in random_states:
+            new_state = deepcopy(state)
+            for key in np.random.choice(list(new_state.state.keys()), 2):
+                if key in new_state.state:
+                    del new_state.state[key]
+            new_states.append(new_state)
+    return random_states + new_states
