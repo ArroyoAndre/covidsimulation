@@ -26,16 +26,32 @@ class Series:
 
     def __init__(self, y: np.ndarray, x: Optional[Union[Sequence, np.ndarray]] = None,
                  start_date: Optional[Union[str, datetime.date]] = None):
-        self.y = deepcopy(y)
         if (x is None) and (start_date is None):
             raise ValueError('Either x or start_date must be specified')
-        if start_date:
+        if not start_date:
+            assert list(x) == sorted(list(x))
+            x = make_date_sequence(x)
+            start_date = x[0]
+            end_date = x[-1]
+            num_elements = (end_date - start_date).days + 1
+        else:
             if isinstance(start_date, str):
                 start_date = get_date_from_isoformat(start_date)
-            self._x = np.array([start_date + datetime.timedelta(days=i) for i in range(len(self.y))])
-        else:
-            self._x = x if isinstance(x, np.ndarray) else np.array(x)
+            num_elements = len(y)
+        self._x = np.array([start_date + datetime.timedelta(days=i) for i in range(num_elements)])
+        if num_elements > len(y):
+            last = 0.0
+            x_to_y = map_x_to_y(x, y)
+            new_y = []
+            for day in self._x:
+                last = x_to_y.get(day, last)
+                new_y.append(last)
+            y = new_y
         self.x = np.array([to_datetime(d) for d in self._x])
+        if isinstance(y, np.ndarray):
+            self.y = deepcopy(y)
+        else:
+            self.y = np.array(y)
 
     def __getitem__(self, item):
         item = self.get_index(item)
@@ -58,22 +74,45 @@ class Series:
     def tolist(self):
         return self.y.tolist()
 
+    def trim(self, start: Optional[Union[int, datetime.date, str]] = None,
+             stop: Optional[Union[int, datetime.date, str]] = None):
+        start_index = self.get_index(start or 0)
+        stop_index = get_stop_index(self, stop)
+        return Series(self.y[start_index:stop_index], self._x[start_index:stop_index])
+
+
+def make_date_sequence(x: Sequence):
+    x_date = []
+    for day in x:
+        if isinstance(day, datetime.datetime):
+            day = day.isoformat()
+        if isinstance(day, str):
+            day = get_date_from_isoformat(day)
+        x_date.append(day)
+    return x_date
+
+
+def map_x_to_y(x: Sequence, y: Sequence):
+    assert len(x) == len(y)
+    x_to_y = {}
+    for xi, yi in zip(x, y):
+        x_to_y[xi] = yi
+    return x_to_y
+
 
 def to_datetime(x: datetime.date) -> datetime.datetime:
     return datetime.datetime(*x.timetuple()[:3])
 
 
 def get_stop_index(series, stop):
-    stop_index = series.get_index(stop) + 1 if stop else len(series)
+    stop_index = series.get_index(stop) + 1 if stop is not None else len(series)
     return min(stop_index, len(series))
 
 
-def plot_line(fig, series, pop_name, color_index, stop, start):
-    start_index = series.get_index(start) if start else 0
-    stop_index = get_stop_index(series, stop)
+def plot_line(fig, series, pop_name, color_index):
     fig.add_trace(go.Scatter(
-        x=series.x[start_index:stop_index],
-        y=series.y[start_index:stop_index],
+        x=series.x,
+        y=series.y,
         line_color=PLOT_COLORS[color_index][0],
         name=pop_name,
     ))
@@ -85,14 +124,11 @@ def concat_seq(s1, s2):
     return list(s1) + list(s2)
 
 
-def plot_confidence_range(fig, series_low, series_high, legend, color_index, stop, start):
+def plot_confidence_range(fig, series_low, series_high, legend, color_index):
     assert len(series_low.x) == len(series_high.x)
-    start_index = series_low.get_index(start) if start else 0
-    stop_index = get_stop_index(series_low, stop)
-    plot_indices = list(range(start_index, stop_index))
     fig.add_trace(go.Scatter(
-        x=concat_seq(series_high.x[plot_indices], series_low.x[list(reversed(plot_indices))]),
-        y=concat_seq(series_high.y[plot_indices], series_low.y[list(reversed(plot_indices))]),
+        x=concat_seq(series_high.x, series_low.x[::-1]),
+        y=concat_seq(series_high.y, series_low.y[::-1]),
         fill='toself',
         fillcolor=PLOT_COLORS[color_index][1],
         line_color=PLOT_COLORS[color_index][1],
@@ -121,16 +157,18 @@ def plot(
         if cindex is not None:
             color_index = cindex
         if isinstance(data, Series) or len(data) == 1:
-            line_fn = partial(plot_line, fig, data[0], pop_name, color_index, stop, start)
+            line_fn = partial(plot_line, fig, data[0].trim(start, stop), pop_name, color_index)
             line_fns.append(line_fn)
         elif len(data) == 3:
             if show_confidence_interval:
-                area_fn = partial(plot_confidence_range, fig, data[1], data[2], None, color_index, stop, start)
+                area_fn = partial(plot_confidence_range, fig, data[1].trim(start, stop), data[2].trim(start, stop),
+                                  None, color_index)
                 area_fns.append(area_fn)
-            line_fn = partial(plot_line, fig, data[0], pop_name, color_index, stop, start)
+            line_fn = partial(plot_line, fig, data[0].trim(start, stop), pop_name, color_index)
             line_fns.append(line_fn)
         elif len(data) == 2:
-            area_fn = partial(plot_confidence_range, fig, data[0], data[1], pop_name, color_index, stop, start)
+            area_fn = partial(plot_confidence_range, fig, data[0].trim(start, stop), data[1].trim(start, stop),
+                              pop_name, color_index)
             area_fns.append(area_fn)
         else:
             raise ValueError('Invalid number of elements to plot')
