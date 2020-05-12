@@ -20,6 +20,7 @@ from .metrics import METRICS
 SIMULATION_ENGINE_VERSION = '0.0.3'
 MAX_WAIT_UNTIL_D0 = 90
 
+
 def get_stats_matrix(populations: Dict, duration):
     num_populations = len(populations)
     num_metrics = len(cs.MEASUREMENTS)
@@ -39,8 +40,11 @@ def track_population(senv: SimulationEnvironment):
         if int(senv.env.now + 0.01) - senv.d0 >= senv.duration:
             return
         cs.log_stats(senv)
-        if senv.simulation_queue:
-            senv.simulation_queue.put(1)
+        try:
+            if senv.simulation_queue:
+                senv.simulation_queue.put(1)
+        except TypeError:  # Communication error with progress bar
+            pass
 
 
 def get_house_size(house_sizes):  # Number of people living in the same house
@@ -69,8 +73,11 @@ def get_population(senv: SimulationEnvironment, population_params: Population) -
         people.extend(generate_people_in_new_house(senv, population_params))
     for _ in range(initially_infected):
         set_initial_infection(senv.sim_params, people)
-    if senv.creation_queue:
-        senv.creation_queue.put(len(people))
+    try:
+        if senv.creation_queue:
+            senv.creation_queue.put(len(people))
+    except TypeError:  # Communication error with progress bar
+        pass
     return people
 
 
@@ -124,10 +131,13 @@ def simulate(
             sim_number, sim_params, simulation_size, duration, simulate_capacity, SIMULATION_ENGINE_VERSION)
         results = get_from_cache(args)
         if results:
-            if creation_queue:
-                creation_queue.put(simulation_size)
-            if simulation_queue:
-                simulation_queue.put(duration)
+            try:
+                if creation_queue:
+                    creation_queue.put(simulation_size)
+                if simulation_queue:
+                    simulation_queue.put(duration)
+            except TypeError:  # Communication error with progress bar
+                pass
             return results[1]
 
     cs.seed(sim_number)
@@ -206,7 +216,7 @@ def run_simulations(
         duration: int = 80,
         number_of_simulations: int = 4,  # For final presentation purposes, a value greater than 10 is recommended
         simulation_size: int = 100000,  # For final presentation purposes, a value greater than 500000 is recommended
-        random_states: Optional[List[RandomParametersState]]=None,
+        random_states: Optional[List[RandomParametersState]] = None,
         fpath=None,
         use_cache=True,
         tqdm=None,  # Optional tqdm function to display progress
