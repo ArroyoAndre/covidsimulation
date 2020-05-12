@@ -12,6 +12,8 @@ The model mainly is intended for:
 - studying the possible effects of interventions
 - providing insights about what factors can be contributing to the overall results observed.
 
+An example of how to do a basic simulation can be found in https://towardsdatascience.com/model-the-covid-19-epidemic-in-detail-with-python-98f0d13f3a0e
+
 # Instructions
 1. Clone this repo
 1. Run `setup.sh`  (It might require making it executable: `chmod 777 setup.sh`)
