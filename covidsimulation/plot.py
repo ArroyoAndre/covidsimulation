@@ -65,7 +65,10 @@ def plot(
         color_index = color_index % len(PLOT_COLORS)
         if cindex is not None:
             color_index = cindex
-        if isinstance(data, Series) or (len(data) == 1):
+        if isinstance(data, Series):
+            line_fn = partial(plot_line, fig, data.trim(start, stop), pop_name, color_index)
+            line_fns.append(line_fn)
+        elif len(data) == 1:
             line_fn = partial(plot_line, fig, data[0].trim(start, stop), pop_name, color_index)
             line_fns.append(line_fn)
         elif len(data) == 3:
