@@ -82,20 +82,11 @@ cdef extern from *:
 
 cdef int get_outcome(np.ndarray severity):
     cdef double p = (rand() / (RAND_MAX + 1.0))
-    if p > severity[0]:
-        return Outcome.NO_INFECTION
-    elif p > severity[1]:
-        return Outcome.NO_SYMPTOMS
-    elif p > severity[2]:
-        return Outcome.MILD
-    elif p > severity[3]:
-        return Outcome.MODERATE
-    elif p > severity[4]:
-        return Outcome.SEVERE
-    elif p > severity[5]:
-        return Outcome.INTENSIVE_CARE
-    elif p > severity[6]:
-        return Outcome.VENTILATION
+    cdef double[:] severity_view = severity
+    cdef int i
+    for i in range(Outcome.DEATH):
+        if p > severity_view[i]:
+            return i
     return Outcome.DEATH
 
 LOCALITY = 60  # The bigger this constant, the higher will be the probability of finding someone geographically closer
