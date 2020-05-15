@@ -12,6 +12,7 @@ DEFAULT_HYGIENE_EFFECTIVENESS = 0.2
 DEFAULT_HYGIENE_MAX_ADHERENCE = 0.99
 DEFAULT_HYGIENE_SHAPE = 3.0
 DEFAULT_CHANCE_OF_DIAGNOSIS_IF_MODERATE = 0.5
+DEFAULT_CAUTIONARY_ICU_FRACTION = 0.5
 
 @dataclass
 class AgeGroup:
@@ -28,3 +29,9 @@ class AgeGroup:
     hygiene_max_adherence: float = DEFAULT_HYGIENE_MAX_ADHERENCE
     hygiene_shape: float = DEFAULT_HYGIENE_SHAPE
     chance_of_diagnosis_if_moderate: float = DEFAULT_CHANCE_OF_DIAGNOSIS_IF_MODERATE
+    max_capacity_for_cautionary_icu: float = 0.0
+    cautionary_icu_fraction: float = DEFAULT_CAUTIONARY_ICU_FRACTION
+    min_capacity_for_icu_avoidance: float = 1.0
+    icu_avoidance_fraction: float = 0.0
+    min_capacity_for_premature_death: float = 1.0
+    premature_death_fraction: float = 0.0

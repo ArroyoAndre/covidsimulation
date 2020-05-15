@@ -43,6 +43,7 @@ cpdef enum Outcome:
     INTENSIVE_CARE = 5
     VENTILATION = 6
     DEATH = 7
+    PREMATURE_DEATH = 8
 
 
 cpdef enum Age:
@@ -79,8 +80,7 @@ cdef extern from *:
     long c_mod(long x, int m)
 
 
-
-cdef int get_outcome(np.ndarray severity):
+cdef int get_raw_outcome(np.ndarray severity):
     cdef double p = (rand() / (RAND_MAX + 1.0))
     cdef double[:] severity_view = severity
     cdef int i
@@ -88,6 +88,70 @@ cdef int get_outcome(np.ndarray severity):
         if p > severity_view[i]:
             return i
     return Outcome.DEATH
+
+
+cdef float get_icu_capacity_fraction(Person person):
+    cdef object icu = person.senv.icu
+    return float(icu.count) / float(icu.capacity)
+
+
+cdef int get_outcome_for_severe(Person person):
+    cdef capacity_fraction = get_icu_capacity_fraction(person)
+    cdef object age_group = person.age_group
+    cdef float max_capacity_for_cautionary_icu = age_group.max_capacity_for_cautionary_icu
+    if capacity_fraction > max_capacity_for_cautionary_icu:
+        return Outcome.SEVERE
+    if max_capacity_for_cautionary_icu * get_uniform() < capacity_fraction:
+        return Outcome.SEVERE
+    if get_uniform() > age_group.cautionary_icu_fraction:
+        return Outcome.SEVERE
+    return Outcome.INTENSIVE_CARE
+
+
+cdef int get_outcome_for_icu(Person person):
+    cdef capacity_fraction
+    cdef float min_capacity_for_icu_avoidance
+    cdef object age_group = person.age_group
+    cdef float icu_avoidance_fraction = age_group.icu_avoidance_fraction
+    if icu_avoidance_fraction:
+        capacity_fraction = get_icu_capacity_fraction(person)
+        min_capacity_for_icu_avoidance = age_group.min_capacity_for_icu_avoidance
+        if capacity_fraction > min_capacity_for_icu_avoidance:
+            if (
+                get_uniform() * (1.0 - min_capacity_for_icu_avoidance) <
+                icu_avoidance_fraction * (min(1.0, capacity_fraction) - min_capacity_for_icu_avoidance)
+                ):
+                return Outcome.SEVERE
+    return Outcome.INTENSIVE_CARE
+
+
+cdef int get_outcome_for_ventilation_or_death(Person person, int previous_outcome):
+    cdef capacity_fraction
+    cdef float min_capacity_for_premature_death
+    cdef object age_group = person.age_group
+    cdef float premature_death_fraction = age_group.premature_death_fraction
+    if premature_death_fraction:
+        capacity_fraction = get_icu_capacity_fraction(person)
+        min_capacity_for_premature_death = age_group.min_capacity_for_premature_death
+        if capacity_fraction > min_capacity_for_premature_death:
+            if (
+                get_uniform() * (1.0 - min_capacity_for_premature_death) <
+                premature_death_fraction * (min(1.0, capacity_fraction) - min_capacity_for_premature_death)
+                ):
+                return Outcome.PREMATURE_DEATH
+    return previous_outcome
+
+
+cdef int get_outcome(Person person):
+    cdef int raw_outcome = get_raw_outcome(person.age_group.severity)
+    if raw_outcome < Outcome.SEVERE:
+        return raw_outcome
+    if raw_outcome == Outcome.SEVERE:
+        return get_outcome_for_severe(person)
+    if raw_outcome == Outcome.INTENSIVE_CARE:
+        return get_outcome_for_icu(person)
+    return get_outcome_for_ventilation_or_death(person, raw_outcome)
+
 
 LOCALITY = 60  # The bigger this constant, the higher will be the probability of finding someone geographically closer
 
@@ -371,7 +435,7 @@ cdef class Person:
             return False
         self.susceptible = False
         self.infection_date = self.env.now
-        cdef size_t expected_outcome = get_outcome(self.age_group.severity)
+        cdef size_t expected_outcome = get_outcome(self)
         if expected_outcome == Outcome.NO_INFECTION:
             return False
         else:
@@ -397,18 +461,24 @@ cdef class Person:
         self.contagious = False
 
     cdef void configure_evolution(self):
-        if self.expected_outcome == Outcome.DEATH:
+        if self.expected_outcome == Outcome.MODERATE:
+            self.configure_evolution_moderate_at_home()
+        elif self.expected_outcome == Outcome.SEVERE:
+            self.configure_evolution_hospitalization()
+        elif self.expected_outcome == Outcome.DEATH:
             self.configure_evolution_death()
         elif self.expected_outcome == Outcome.VENTILATION:
             self.configure_evolution_ventilation()
         elif self.expected_outcome == Outcome.INTENSIVE_CARE:
             self.configure_evolution_icu()
-        elif self.expected_outcome == Outcome.SEVERE:
-            self.configure_evolution_hospitalization()
-        elif self.expected_outcome == Outcome.MODERATE:
-            self.configure_evolution_moderate_at_home()
+        elif self.expected_outcome == Outcome.PREMATURE_DEATH:
+            self.configure_evolution_premature_death()
         else:
             self.configure_evolution_mild_at_home()
+
+    cdef void configure_evolution_premature_death(self):
+        time_until_outcome = np.random.weibull(2) * 6  # 6 dias
+        self.process(self.run_premature_death(time_until_outcome))
 
     cdef void configure_evolution_death(self):
         time_until_outcome = np.random.weibull(2) * 17  # 15 dias
@@ -475,6 +545,11 @@ cdef class Person:
         cdef float time_for_confirmation = np.random.weibull(4.0) * self.sim_consts.death_confirmation_delay
         yield self.timeout(time_for_confirmation)
         self.confirmed_death = True
+
+    def run_premature_death(self, time_until_outcome):
+        yield self.timeout(time_until_outcome)
+        self.request_diagnosis()
+        yield from self.run_death(0)
 
     def run_hospitalization(self, time_until_hospitalization):
         yield self.timeout(time_until_hospitalization)
