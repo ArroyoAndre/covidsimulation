@@ -22,6 +22,18 @@ An example of how to do a basic simulation can be found in https://towardsdatasc
 1. Whenever you change Cython code, don't forget to compile it with 
 `python3 setup.py build_ext --inplace` or simply call `setup.sh` again
 
+# Troubleshooting
+In case you have issues with clogged outputs or in case graphs don't show up, you can try
+enabling some nbextensions in your jupyter:
+_(If you are not in a virtualenv, use `--user` instead of `--sys-prefix`)_
+```
+jupyter nbextension install widgetsnbextension --sys-prefix --py
+jupyter nbextension install plotlywidget --sys-prefix --py
+jupyter nbextension enable widgetsnbextension --sys-prefix --py
+jupyter nbextension enable plotlywidget --sys-prefix --py
+```
+
+
 # Understanding the code
 
 This is an IBDM for Covid-19.
