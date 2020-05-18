@@ -321,6 +321,9 @@ cdef class Person:
     cdef public bool in_hospital_bed
     cdef public bool in_icu
     cdef public bool in_ventilator
+    cdef public bool in_virtual_hospital_bed
+    cdef public bool in_virtual_icu
+    cdef public bool in_virtual_ventilator
     cdef public bool avoidable_death
     cdef float time_until_symptoms
     cdef float incubation_time
@@ -357,6 +360,9 @@ cdef class Person:
         self.in_hospital_bed = False
         self.in_icu = False
         self.in_ventilator = False
+        self.in_virtual_hospital_bed = False
+        self.in_virtual_icu = False
+        self.in_virtual_ventilator = False
         self.avoidable_death = False
         self.attention_req = None
         self.hospital_bed_req = None
@@ -435,9 +441,12 @@ cdef class Person:
         self.process(self.run_ventilation(time_until_icu_and_ventilation))
         time_until_icu_without_ventilation = time_until_outcome * 0.5113  # 16 dias
         self.process(self.run_leave_ventilation(time_until_icu_without_ventilation))
+        self.process(self.run_leave_ventilation(time_until_icu_without_ventilation, virtual=True))
         time_until_icu_ends = time_until_outcome * 0.7125  # 22 dias
         self.process(self.run_leave_icu(time_until_icu_ends))
+        self.process(self.run_leave_icu(time_until_icu_ends, virtual=True))
         self.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_leave_hospital(time_until_outcome, virtual=True))
 
     cdef void configure_evolution_icu(self):
         time_until_outcome = np.random.weibull(2) * 23  # 20 dias
@@ -447,7 +456,9 @@ cdef class Person:
         self.process(self.run_enter_icu(time_until_icu))
         time_until_icu_ends = time_until_outcome * 0.7
         self.process(self.run_leave_icu(time_until_icu_ends))
+        self.process(self.run_leave_icu(time_until_icu_ends, virtual=True))
         self.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_leave_hospital(time_until_outcome, virtual=True))
 
     cdef void configure_evolution_hospitalization(self):
         time_until_outcome = np.random.weibull(
@@ -455,6 +466,7 @@ cdef class Person:
         time_until_hospitalization = time_until_outcome * self.sim_consts.time_to_hospitalization_severe_proportion  # 6 dias
         self.process(self.run_hospitalization(time_until_hospitalization))
         self.process(self.run_leave_hospital(time_until_outcome))
+        self.process(self.run_leave_hospital(time_until_outcome, virtual=True))
 
     cdef void configure_evolution_moderate_at_home(self):
         time_until_outcome = np.random.weibull(2) * 20  # 18 dias  
@@ -523,6 +535,7 @@ cdef class Person:
         request = hospital_bed_req.__enter__()
         self.hospital_bed_req = hospital_bed_req
         result = yield request | self.timeout(np.random.exponential(2.0))
+        self.in_virtual_hospital_bed = True
         if request in result:
             if self.hospital_bed_req:
                 self.in_hospital_bed = True
@@ -540,6 +553,7 @@ cdef class Person:
         request = icu_req.__enter__()
         self.icu_req = icu_req
         result = yield request | self.timeout(np.random.exponential(1.0))
+        self.in_virtual_icu = True
         if request in result:
             if self.icu_req:
                 self.in_icu = True
@@ -557,6 +571,7 @@ cdef class Person:
         request = ventilator_req.__enter__()
         self.ventilator_req = ventilator_req
         result = yield request | self.timeout(np.random.exponential(1.0))
+        self.in_virtual_ventilator = True
         if request in result:
             if self.ventilator_req:
                 self.in_ventilator = True
@@ -580,23 +595,29 @@ cdef class Person:
             self.in_ventilator = True
             self.in_icu = True
     
-    def run_leave_ventilation(self, time_until_icu_without_ventilation):
+    def run_leave_ventilation(self, time_until_icu_without_ventilation, virtual=False):
         yield self.timeout(time_until_icu_without_ventilation)
         if self.dead:
             return
         if self.ventilator_req:
             self.ventilator_req.__exit__(None, None, None)
             self.ventilator_req = None
-        self.in_ventilator = False
+        if virtual:
+            self.in_virtual_ventilator = False
+        else:
+            self.in_ventilator = False
     
-    def run_leave_icu(self, time_until_icu_ends):
+    def run_leave_icu(self, time_until_icu_ends, virtual=False):
         yield self.timeout(time_until_icu_ends)
         if self.dead:
             return
         if self.icu_req:
             self.icu_req.__exit__(None, None, None)
             self.icu_req = None
-        self.in_icu = False
+        if virtual:
+            self.in_virtual_icu = False
+        else:
+            self.in_icu = False
 
     def run_enter_icu(self, tempo_ate_icu):
         yield self.timeout(tempo_ate_icu)
@@ -607,7 +628,7 @@ cdef class Person:
         else:
             self.in_icu = True
 
-    def run_leave_hospital(self, time_until_discharge_from_hospital):
+    def run_leave_hospital(self, time_until_discharge_from_hospital, virtual=False):
         yield self.timeout(time_until_discharge_from_hospital)
         if self.dead:
             return
@@ -621,8 +642,11 @@ cdef class Person:
             self.attention_req = None
         if self.hospitalized:    
             self.recovery_date = self.env.now
-        self.hospitalized = False
-        self.in_hospital_bed = False
+        if virtual:
+            self.in_virtual_hospital_bed = False
+        else:
+            self.hospitalized = False
+            self.in_hospital_bed = False
 
     def run_cure(self, time_until_discharge_from_hospital):
         yield self.timeout(time_until_discharge_from_hospital)
@@ -654,6 +678,10 @@ cdef class Person:
         self.in_hospital_bed = False
         self.in_icu = False
         self.in_ventilator = False
+        self.susceptible = False
+        self.in_virtual_hospital_bed = False
+        self.in_virtual_icu = False
+        self.in_virtual_ventilator = False
         self.susceptible = False
         self.dead = True
         self.death_date = self.env.now
@@ -853,10 +881,22 @@ cdef int get_confirmed_in_icu(Person person):
 cdef int get_confirmed_in_ward_bed(Person person):
     return 1 if person.in_hospital_bed and person.diagnosed and not person.in_icu else 0
 
+cdef int get_in_virtual_ventilator(Person person):
+    return 1 if person.in_virtual_ventilator else 0
+
+cdef int get_in_virtual_icu(Person person):
+    return 1 if person.in_virtual_icu else 0
+
+cdef int get_in_virtual_hospital_bed(Person person):
+    return 1 if person.in_virtual_hospital_bed else 0
+
+cdef int get_in_virtual_ward_bed(Person person):
+    return 1 if person.in_virtual_hospital_bed and not person.in_virtual_icu else 0
+
 ctypedef int (*int_from_person)(Person)
 
 cdef enum:
-    NUM_FUNCTIONS = 18
+    NUM_FUNCTIONS = 22
 
 cdef int_from_person[NUM_FUNCTIONS] fmetrics
 
@@ -878,6 +918,10 @@ fmetrics[14] = &get_in_ward_bed
 fmetrics[15] = &get_confirmed_in_icu
 fmetrics[16] = &get_confirmed_inpatients
 fmetrics[17] = &get_confirmed_in_ward_bed
+fmetrics[18] = &get_in_virtual_ventilator
+fmetrics[19] = &get_in_virtual_icu
+fmetrics[20] = &get_in_virtual_hospital_bed
+fmetrics[21] = &get_in_virtual_ward_bed
 
 
 MEASUREMENTS = [
@@ -899,6 +943,10 @@ MEASUREMENTS = [
     'confirmed_in_intensive_care',
     'confirmed_inpatients',
     'confirmed_in_ward_bed',
+    'demand_ventilator',
+    'demand_icu',
+    'demand_hospital_bed',
+    'demand_ward_bed'
 ]
 
 

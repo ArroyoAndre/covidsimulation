@@ -24,4 +24,8 @@ METRICS = {
     'pc_in_isolation': ('in_isolation', 'population'),
     'pc_contagious': ('contagious', 'population'),
     'rt': ('transmitted', 'contagion_ended'),
+    'demand_ventilator': ('demand_ventilator', None),
+    'demand_icu': ('demand_icu', None),
+    'demand_hospital_bed': ('demand_hospital_bed', None),
+    'demand_ward_bed': ('demand_ward_bed', None)
 }
