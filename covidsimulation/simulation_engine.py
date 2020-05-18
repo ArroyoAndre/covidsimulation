@@ -155,13 +155,13 @@ def simulate(
         simulate_capacity=simulate_capacity,
         isolation_factor=0.0,
         attention=simpy.resources.resource.PriorityResource(env,
-                                                            capacity=int(sim_params.capacity_hospital_max * scaling)),
+                                                            capacity=np.ceil(sim_params.capacity_hospital_max * scaling)),
         hospital_bed=simpy.resources.resource.PriorityResource(env,
-                                                               capacity=int(
+                                                               capacity=np.ceil(
                                                                    sim_params.capacity_hospital_beds * scaling)),
         ventilator=simpy.resources.resource.PriorityResource(env,
-                                                             capacity=int(sim_params.capacity_ventilators * scaling)),
-        icu=simpy.resources.resource.PriorityResource(env, capacity=int(sim_params.capacity_icu * scaling)),
+                                                             capacity=np.ceil(sim_params.capacity_ventilators * scaling)),
+        icu=simpy.resources.resource.PriorityResource(env, capacity=np.ceil(sim_params.capacity_icu * scaling)),
         stats=get_stats_matrix(sim_params.population_segments, duration),
         street_expositions_interval=sim_params.street_transmission_scale_days,
         social_group_expositions_interval=(

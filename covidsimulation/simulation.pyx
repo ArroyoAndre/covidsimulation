@@ -324,6 +324,7 @@ cdef class Person:
     cdef public bool in_virtual_hospital_bed
     cdef public bool in_virtual_icu
     cdef public bool in_virtual_ventilator
+    cdef public bool virtually_dead
     cdef public bool avoidable_death
     cdef float time_until_symptoms
     cdef float incubation_time
@@ -432,6 +433,7 @@ cdef class Person:
         time_until_icu_and_ventilation = time_until_outcome * 0.47  # 8 dias na ventilacao
         self.process(self.run_ventilation(time_until_icu_and_ventilation))
         self.process(self.run_death(time_until_outcome))
+        self.process(self.run_death(time_until_outcome, virtual=True))
 
     cdef void configure_evolution_ventilation(self):
         time_until_outcome = np.random.weibull(2) * 36  # 32 dias
@@ -529,7 +531,6 @@ cdef class Person:
             self.avoidable_death = True
             yield from self.run_death(0)
 
-
     def request_hospital_bed(self):
         hospital_bed_req = self.senv.hospital_bed.request(8 - self.expected_outcome)
         request = hospital_bed_req.__enter__()
@@ -597,26 +598,22 @@ cdef class Person:
     
     def run_leave_ventilation(self, time_until_icu_without_ventilation, virtual=False):
         yield self.timeout(time_until_icu_without_ventilation)
-        if self.dead:
-            return
-        if self.ventilator_req:
-            self.ventilator_req.__exit__(None, None, None)
-            self.ventilator_req = None
         if virtual:
             self.in_virtual_ventilator = False
-        else:
+        elif not self.dead:
+            if self.ventilator_req:
+                self.ventilator_req.__exit__(None, None, None)
+                self.ventilator_req = None
             self.in_ventilator = False
     
     def run_leave_icu(self, time_until_icu_ends, virtual=False):
         yield self.timeout(time_until_icu_ends)
-        if self.dead:
-            return
-        if self.icu_req:
-            self.icu_req.__exit__(None, None, None)
-            self.icu_req = None
         if virtual:
             self.in_virtual_icu = False
-        else:
+        elif not self.dead:
+            if self.icu_req:
+                self.icu_req.__exit__(None, None, None)
+                self.icu_req = None
             self.in_icu = False
 
     def run_enter_icu(self, tempo_ate_icu):
@@ -630,21 +627,20 @@ cdef class Person:
 
     def run_leave_hospital(self, time_until_discharge_from_hospital, virtual=False):
         yield self.timeout(time_until_discharge_from_hospital)
-        if self.dead:
-            return
-        self.active = False
-        self.setup_remove_immunization()
-        if self.hospital_bed_req:
-            self.hospital_bed_req.__exit__(None, None, None)
-            self.hospital_bed_req = None
-        if self.attention_req:
-            self.attention_req.__exit__(None, None, None)
-            self.attention_req = None
-        if self.hospitalized:    
-            self.recovery_date = self.env.now
         if virtual:
             self.in_virtual_hospital_bed = False
-        else:
+        elif not self.dead:
+            self.active = False
+            self.setup_remove_immunization()
+            if self.hospital_bed_req:
+                self.hospital_bed_req.__exit__(None, None, None)
+                self.hospital_bed_req = None
+            if self.attention_req:
+                self.attention_req.__exit__(None, None, None)
+                self.attention_req = None
+            if self.hospitalized:
+                self.recovery_date = self.env.now
+
             self.hospitalized = False
             self.in_hospital_bed = False
 
@@ -655,38 +651,38 @@ cdef class Person:
         self.active = False
         self.setup_remove_immunization()
     
-    def run_death(self, time_until_death):
+    def run_death(self, time_until_death, virtual=False):
         yield self.timeout(time_until_death)
-        if self.dead:
-            return
-        self.active = False 
-        self.contagious = False
-        if self.senv.simulate_capacity:
-            if self.attention_req:
-                self.attention_req.__exit__(None, None, None)
-                self.attention_req = None        
-            if self.hospital_bed_req:
-                self.hospital_bed_req.__exit__(None, None, None)
-                self.hospital_bed_req = None
-            if self.icu_req:
-                self.icu_req.__exit__(None, None, None)
-                self.icu_req = None
-            if self.ventilator_req:
-                self.ventilator_req.__exit__(None, None, None)
-                self.ventilator_req = None
-        self.hospitalized = False
-        self.in_hospital_bed = False
-        self.in_icu = False
-        self.in_ventilator = False
-        self.susceptible = False
-        self.in_virtual_hospital_bed = False
-        self.in_virtual_icu = False
-        self.in_virtual_ventilator = False
-        self.susceptible = False
-        self.dead = True
-        self.death_date = self.env.now
-        if self.diagnosed:
-            self.process(self.wait_for_death_confirmation())
+        if virtual:
+            self.in_virtual_hospital_bed = False
+            self.in_virtual_icu = False
+            self.in_virtual_ventilator = False
+            self.virtually_dead = True
+        elif not self.dead:
+            self.active = False
+            self.contagious = False
+            if self.senv.simulate_capacity:
+                if self.attention_req:
+                    self.attention_req.__exit__(None, None, None)
+                    self.attention_req = None
+                if self.hospital_bed_req:
+                    self.hospital_bed_req.__exit__(None, None, None)
+                    self.hospital_bed_req = None
+                if self.icu_req:
+                    self.icu_req.__exit__(None, None, None)
+                    self.icu_req = None
+                if self.ventilator_req:
+                    self.ventilator_req.__exit__(None, None, None)
+                    self.ventilator_req = None
+            self.hospitalized = False
+            self.in_hospital_bed = False
+            self.in_icu = False
+            self.in_ventilator = False
+            self.susceptible = False
+            self.dead = True
+            self.death_date = self.env.now
+            if self.diagnosed:
+                self.process(self.wait_for_death_confirmation())
     
     def run_contagion_home(self):
         while self.contagious and not self.hospitalized:
